@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "./api";
+import DurationInput from "./DurationInput";
 import { formatDateTime, formatDuration, fromLocalInputs, toLocalInputs } from "@/lib/format";
-import { totalMinutes } from "@/lib/schedule";
-import type { Dish, Meal } from "@/lib/types";
+import { computeSchedule, totalMinutes } from "@/lib/schedule";
+import { HOLD_LABELS, type Dish, type DishMode, type HoldMethod, type Meal } from "@/lib/types";
 
 type DishLike = Omit<Dish, "id"> & { id?: string };
 
@@ -23,9 +24,19 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
   const [time, setTime] = useState(initial.time);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<DishMode>("fresh");
+  const [holdMethod, setHoldMethod] = useState<HoldMethod>("fridge");
+  const [readyAheadMin, setReadyAheadMin] = useState(120);
+  const hasFinish = dish.steps.some((s) => s.phase === "finish");
 
   const serveAt = fromLocalInputs(date, time);
-  const start = serveAt ? new Date(new Date(serveAt).getTime() - total * 60_000) : null;
+  const start = serveAt
+    ? computeSchedule({
+        id: "preview", name: dish.name, serveAt, deadlineMode: "all", timezone: "", reminderLeadMin: 5,
+        remindersOn: false, inLibrary: false,
+        dishes: [{ id: "d", name: dish.name, emoji: dish.emoji, color: dish.color, steps: dish.steps, mode, holdMethod, readyAheadMin, serveAt: null }],
+      }).firstStart
+    : null;
   const [now] = useState(() => Date.now());
   const late = start ? start.getTime() < now - 60_000 : false;
 
@@ -36,7 +47,7 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
     try {
       const meal = await api<Meal>("/api/quick-cook", {
         method: "POST",
-        json: { dish, serveAt, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        json: { dish, serveAt, mode, holdMethod, readyAheadMin, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
       });
       router.push(`/meals/${meal.id}/cook`);
     } catch (e) {
@@ -48,7 +59,7 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div
-        className="w-full max-w-lg space-y-4 rounded-t-3xl bg-bg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
+        className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-t-3xl bg-bg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -64,6 +75,30 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
             <input type="date" className="field flex-1" value={date} onChange={(e) => setDate(e.target.value)} />
             <input type="time" className="field w-36" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
+        </div>
+        <div className="space-y-3 rounded-xl bg-white p-3">
+          <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-line text-sm font-semibold">
+            {(["fresh", "make_ahead"] as const).map((m) => (
+              <button key={m} type="button" onClick={() => setMode(m)} className={`py-2.5 ${mode === m ? "bg-ink text-white" : "bg-white text-muted"}`}>
+                {m === "fresh" ? "🍳 Serve fresh" : "📦 Make ahead"}
+              </button>
+            ))}
+          </div>
+          {mode === "make_ahead" && (
+            <>
+              <div>
+                <label className="label">Keep it in the meantime</label>
+                <select className="field" value={holdMethod} onChange={(e) => setHoldMethod(e.target.value as HoldMethod)}>
+                  {Object.entries(HOLD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Have it done this long before the ready-by time</label>
+                <DurationInput minutes={readyAheadMin} onChange={setReadyAheadMin} />
+              </div>
+              {hasFinish && <p className="text-xs text-muted">Finishing steps (like reheating) still happen right before the ready-by time.</p>}
+            </>
+          )}
         </div>
         {start && (
           <p className={`rounded-xl p-3 text-sm ${late ? "bg-amber-50 text-amber-900" : "bg-white text-ink"}`}>

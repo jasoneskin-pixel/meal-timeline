@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { db, mealFromRow, mealToRow } from "@/lib/db";
 import { syncMealReminders } from "@/lib/reminders";
 import { newId } from "@/lib/ids";
-import type { Dish, Meal } from "@/lib/types";
+import type { Dish, DishMode, HoldMethod, Meal } from "@/lib/types";
 
 /** Start a one-off timeline for a single dish, ready by the given time. */
 export async function POST(req: Request) {
-  const { dish, serveAt, timezone } = (await req.json()) as { dish?: Dish; serveAt?: string; timezone?: string };
+  const { dish, serveAt, timezone, mode, holdMethod, readyAheadMin } = (await req.json()) as {
+    dish?: Dish; serveAt?: string; timezone?: string; mode?: DishMode; holdMethod?: HoldMethod; readyAheadMin?: number;
+  };
   if (!dish || !dish.steps?.length) return NextResponse.json({ error: "This dish has no steps yet." }, { status: 400 });
   if (!serveAt) return NextResponse.json({ error: "Pick when it should be ready." }, { status: 400 });
 
@@ -28,9 +30,9 @@ export async function POST(req: Request) {
         emoji: dish.emoji,
         color: dish.color,
         steps: dish.steps,
-        mode: "fresh",
-        holdMethod: "fridge",
-        readyAheadMin: 0,
+        mode: mode === "make_ahead" ? "make_ahead" : "fresh",
+        holdMethod: holdMethod ?? "fridge",
+        readyAheadMin: mode === "make_ahead" ? Math.max(0, Math.round(readyAheadMin ?? 0)) : 0,
         serveAt: null,
       },
     ],

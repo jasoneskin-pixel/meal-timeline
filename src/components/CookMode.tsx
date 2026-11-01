@@ -36,8 +36,33 @@ function useWakeLock() {
   return on;
 }
 
-export default function CookMode({ meal }: { meal: Meal }) {
+export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealChange?: (m: Meal) => void }) {
   const router = useRouter();
+  const [behindOpen, setBehindOpen] = useState(false);
+  const [customMin, setCustomMin] = useState("");
+  const [shiftMsg, setShiftMsg] = useState("");
+  const [shifting, setShifting] = useState(false);
+  async function pushBack(min: number) {
+    if (!min || min <= 0) return;
+    setShifting(true);
+    const ms = min * 60_000;
+    const move = (iso: string | null | undefined) => (iso ? new Date(new Date(iso).getTime() + ms).toISOString() : null);
+    const updated: Meal = {
+      ...meal,
+      serveAt: move(meal.serveAt) ?? meal.serveAt,
+      dishes: meal.dishes.map((d) => ({ ...d, serveAt: move(d.serveAt) })),
+    };
+    try {
+      const saved = await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated });
+      onMealChange?.(saved);
+      setShiftMsg(`Pushed back ${min} min. Now serving at ${formatTime(saved.serveAt)}. Reminders updated.`);
+      setBehindOpen(false);
+      setCustomMin("");
+    } catch (e) {
+      setShiftMsg((e as Error).message);
+    }
+    setShifting(false);
+  }
   const [showAll, setShowAll] = useState(false);
   // Opening cook mode marks the timeline as started so it shows in the Active tab.
   useEffect(() => {
@@ -113,6 +138,30 @@ export default function CookMode({ meal }: { meal: Meal }) {
         <p className="text-sm opacity-70">{meal.name}</p>
         <p className="text-sm opacity-70">Serving at {formatTime(meal.serveAt)}</p>
         <p className="mt-1 font-mono text-4xl font-bold tabular-nums">{serveMs > 0 ? formatCountdown(serveMs) : "Time to eat! 🎉"}</p>
+      </div>
+      <div className="space-y-2">
+        <button className="btn-ghost w-full" onClick={() => setBehindOpen(!behindOpen)}>⏱️ Running behind?</button>
+        {behindOpen && (
+          <div className="card space-y-3">
+            <p className="text-sm text-muted">Push every remaining step and the serving time back by:</p>
+            <div className="grid grid-cols-4 gap-2">
+              {[5, 10, 15, 30].map((m) => (
+                <button key={m} className="btn-ghost px-2" disabled={shifting} onClick={() => pushBack(m)}>+{m}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" inputMode="numeric" min={1} placeholder="Other" className="field w-24 text-center"
+                value={customMin} onChange={(e) => setCustomMin(e.target.value)}
+              />
+              <span className="text-sm text-muted">min</span>
+              <button className="btn-primary ml-auto" disabled={shifting || !(parseInt(customMin) > 0)} onClick={() => pushBack(parseInt(customMin))}>
+                Push back
+              </button>
+            </div>
+          </div>
+        )}
+        {shiftMsg && <p className="text-sm text-muted">{shiftMsg}</p>}
       </div>
       <DishLegend meal={meal} />
       <NotificationSetup compact />
