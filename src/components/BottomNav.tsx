@@ -1,34 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { TABS, useActiveCount } from "./nav";
 
-const TABS = [
-  { href: "/active", label: "Active", icon: "🔥", match: (p: string) => p.startsWith("/active") || p.endsWith("/cook") },
-  { href: "/library", label: "Library", icon: "📚", match: (p: string) => p.startsWith("/library") || p.startsWith("/dishes") },
-  { href: "/meals", label: "Meals", icon: "🗓️", match: (p: string) => p.startsWith("/meals") && !p.endsWith("/cook") },
-  { href: "/settings", label: "Settings", icon: "⚙️", match: (p: string) => p.startsWith("/settings") },
-];
-
+/** Phone and iPad-portrait navigation. Larger screens use the Sidebar. */
 export default function BottomNav() {
   const path = usePathname();
-  const [activeCount, setActiveCount] = useState(0);
   const onLogin = path.startsWith("/login");
-
-  useEffect(() => {
-    if (onLogin) return;
-    let cancelled = false;
-    fetch("/api/active")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((list: unknown[]) => !cancelled && setActiveCount(Array.isArray(list) ? list.length : 0))
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [path, onLogin]);
-
+  const activeCount = useActiveCount(path, !onLogin);
   if (onLogin) return null;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <div className="mx-auto flex max-w-2xl">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <div className="mx-auto flex max-w-2xl md:max-w-3xl">
         {TABS.map((t) => {
           const active = t.match(path);
           return (

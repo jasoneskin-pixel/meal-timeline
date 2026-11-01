@@ -7,7 +7,7 @@ export default function SettingsPage() {
     window.location.assign("/login");
   }
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <h1 className="text-2xl font-bold">Settings</h1>
       <section className="space-y-2">
         <h2 className="font-bold">Reminders on this device</h2>

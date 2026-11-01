@@ -88,7 +88,7 @@ export default function ActivePage() {
   }, []);
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <h1 className="text-2xl font-bold">🔥 Active</h1>
       {error && <p className="text-red-700">{error}</p>}
       {meals === null && !error && <p className="text-muted">Loading...</p>}
@@ -106,7 +106,7 @@ export default function ActivePage() {
           <ActiveCard meal={m} now={now} />
         </SwipeToDelete>
       ))}
-      {meals && meals.length > 0 && <p className="text-center text-xs text-muted">Tip: swipe left on a card when you&apos;re done cooking.</p>}
+      {meals && meals.length > 0 && <p className="text-center text-xs text-muted">Tip: swipe left on a card when you&apos;re done cooking (on a computer, hover over it).</p>}
       {toast}
     </div>
   );

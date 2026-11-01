@@ -35,7 +35,7 @@ export default function MealPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/meals" className="text-sm font-semibold text-accent">‹ Meals</Link>
       <header>
         <h1 className="text-2xl font-bold">{meal.inLibrary ? "⭐ " : ""}{meal.name}</h1>

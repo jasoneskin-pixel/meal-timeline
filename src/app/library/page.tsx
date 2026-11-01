@@ -46,7 +46,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Library</h1>
         {tab === "dishes" && <Link href="/dishes/new" className="btn-primary">+ New dish</Link>}
@@ -92,7 +92,7 @@ export default function LibraryPage() {
         </div>
       )}
       {error && <p className="text-sm text-red-700">{error}</p>}
-      {dishes && dishes.length > 0 && tab === "dishes" && <p className="text-center text-xs text-muted">Tip: swipe left on an item to delete it.</p>}
+      {dishes && dishes.length > 0 && tab === "dishes" && <p className="text-center text-xs text-muted">Tip: swipe left on an item to delete it (on a computer, hover over it).</p>}
       {cookDish && <CookDishSheet dish={cookDish} onClose={() => setCookDish(null)} />}
       {toast}
     </div>

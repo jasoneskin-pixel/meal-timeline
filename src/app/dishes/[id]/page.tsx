@@ -14,7 +14,7 @@ export default function EditDishPage() {
     api<Dish>(`/api/dishes/${id}`).then(setDish).catch((e) => setError(e.message));
   }, [id]);
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <Link href="/library" className="text-sm font-semibold text-accent">‹ Library</Link>
       <h1 className="text-2xl font-bold">Edit dish</h1>
       {error && <p className="text-red-700">{error}</p>}

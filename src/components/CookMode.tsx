@@ -97,30 +97,30 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   const renderStep = (s: ScheduledStep, mode: "now" | "next" | "late") => {
     const pct = Math.min(100, Math.max(0, ((now - s.start.getTime()) / (s.end.getTime() - s.start.getTime() || 1)) * 100));
     return (
-      <div key={s.key} className="rounded-2xl border border-line bg-white p-3" style={{ borderLeft: `6px solid ${s.dish.color}` }}>
+      <div key={s.key} className="rounded-2xl border border-line bg-white p-3 md:p-4" style={{ borderLeft: `6px solid ${s.dish.color}` }}>
         <div className="flex items-start gap-3">
           <button
             aria-label="Mark done" onClick={() => toggle(s.key)}
-            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
+            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 md:h-9 md:w-9 md:text-lg"
             style={{ borderColor: s.dish.color }}
           >
             {done.has(s.key) ? "✓" : ""}
           </button>
           <div className="flex-1">
-            <p className="font-semibold">{s.dish.emoji} {s.step.title}</p>
-            <p className="text-sm text-muted">
+            <p className="font-semibold md:text-xl">{s.dish.emoji} {s.step.title}</p>
+            <p className="text-sm text-muted md:text-base">
               {s.dish.name} · {s.step.kind === "active" ? "✋ hands-on" : "⏳ hands-off"}
               {s.step.ovenTemp ? ` · 🔥 ${s.step.ovenTemp}°F` : ""} · {formatTime(s.start)} to {formatTime(s.end)}
             </p>
             {mode === "now" && (
               <div className="mt-2">
-                <div className="h-2 overflow-hidden rounded-full bg-line">
+                <div className="h-2 overflow-hidden rounded-full bg-line md:h-3">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: s.dish.color }} />
                 </div>
-                <p className="mt-1 text-right font-mono text-lg font-bold tabular-nums">{formatCountdown(s.end.getTime() - now)} left</p>
+                <p className="mt-1 text-right font-mono text-lg font-bold tabular-nums md:text-3xl">{formatCountdown(s.end.getTime() - now)} left</p>
               </div>
             )}
-            {mode === "next" && <p className="mt-1 text-sm font-semibold">Starts in {formatCountdown(s.start.getTime() - now)} · {formatDuration(s.step.minutes)}</p>}
+            {mode === "next" && <p className="mt-1 text-sm font-semibold md:text-lg">Starts in {formatCountdown(s.start.getTime() - now)} · {formatDuration(s.step.minutes)}</p>}
             {mode === "late" && <p className="mt-1 text-sm font-semibold text-red-700">Should be done. Tap the circle when finished.</p>}
           </div>
         </div>
@@ -129,15 +129,16 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   };
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="mx-auto max-w-6xl pb-10 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <Link href="/active" className="text-sm font-semibold text-accent">‹ Active</Link>
         <span className="text-xs text-muted">{awake ? "☀️ Screen stays on" : ""}</span>
       </div>
-      <div className="rounded-3xl bg-ink p-5 text-white">
-        <p className="text-sm opacity-70">{meal.name}</p>
-        <p className="text-sm opacity-70">Serving at {formatTime(meal.serveAt)}</p>
-        <p className="mt-1 font-mono text-4xl font-bold tabular-nums">{serveMs > 0 ? formatCountdown(serveMs) : "Time to eat! 🎉"}</p>
+      <div className="rounded-3xl bg-ink p-5 text-white md:p-7">
+        <p className="text-sm opacity-70 md:text-lg">{meal.name}</p>
+        <p className="text-sm opacity-70 md:text-lg">Serving at {formatTime(meal.serveAt)}</p>
+        <p className="mt-1 font-mono text-4xl font-bold tabular-nums md:text-7xl">{serveMs > 0 ? formatCountdown(serveMs) : "Time to eat! 🎉"}</p>
       </div>
       <div className="space-y-2">
         <button className="btn-ghost w-full" onClick={() => setBehindOpen(!behindOpen)}>⏱️ Running behind?</button>
@@ -168,26 +169,35 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
 
       {overdue.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-bold text-red-700">Running behind</h2>
+          <h2 className="font-bold text-red-700 md:text-xl">Running behind</h2>
           {overdue.map((s) => renderStep(s, "late"))}
         </section>
       )}
       <section className="space-y-2">
-        <h2 className="font-bold">Now</h2>
+        <h2 className="font-bold md:text-xl">Now</h2>
         {current.length ? current.map((s) => renderStep(s, "now")) : <p className="text-muted">Nothing in progress right now.</p>}
       </section>
       <section className="space-y-2">
-        <h2 className="font-bold">Up next</h2>
+        <h2 className="font-bold md:text-xl">Up next</h2>
         {upcoming.length ? upcoming.map((s) => renderStep(s, "next")) : <p className="text-muted">No more steps. 🎉</p>}
       </section>
-      <section className="space-y-3">
-        <button className="font-bold" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
+      <section className="space-y-3 lg:hidden">
+        <button className="font-bold md:text-xl" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
         {showAll && <Timeline meal={meal} />}
       </section>
       {!meal.isQuick && (
         <Link href={`/meals/${meal.id}`} className="btn-ghost w-full">📋 Meal details</Link>
       )}
       <button className="btn-ghost w-full" onClick={finish}>✅ Done cooking</button>
+    </div>
+
+      {/* Kitchen display: on iPad landscape and desktop the full timeline is always visible. */}
+      <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold">Full timeline</h2>
+          <Timeline meal={meal} />
+        </div>
+      </aside>
     </div>
   );
 }

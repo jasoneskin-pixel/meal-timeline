@@ -59,7 +59,7 @@ export default function Home() {
   const past = (meals ?? []).filter((m) => new Date(m.serveAt).getTime() < cutoff);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Meals</h1>
         <Link href="/meals/new" className="btn-primary">+ New meal</Link>

@@ -227,7 +227,9 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
     }
   }
 
+  const hasPreview = !!meal.serveAt && meal.dishes.length > 0;
   return (
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
     <div className="space-y-5">
       <div className="card space-y-4">
         <div>
@@ -300,19 +302,35 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
         </label>
       </div>
 
-      {meal.serveAt && meal.dishes.length > 0 && (
-        <section className="space-y-3">
+      {hasPreview && (
+        <section className="space-y-3 lg:hidden">
           <h2 className="text-lg font-bold">Preview</h2>
           <Timeline meal={meal as Meal} />
         </section>
       )}
 
       {error && <p className="text-sm text-red-700">{error}</p>}
-      <div className="sticky bottom-20 z-20">
+      <div className="sticky bottom-20 z-20 lg:bottom-4">
         <button className="btn-primary w-full py-3.5 text-lg shadow-lg" disabled={saving} onClick={save}>
           {saving ? "Saving..." : "Save meal"}
         </button>
       </div>
+    </div>
+
+      {/* iPad landscape and desktop: the timeline stays visible beside the editor and updates live. */}
+      <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="space-y-3">
+          <h2 className="text-lg font-bold">Live timeline</h2>
+          {hasPreview ? (
+            <>
+              <DishLegend meal={meal as Meal} />
+              <Timeline meal={meal as Meal} />
+            </>
+          ) : (
+            <div className="card text-sm text-muted">Set a serving date and time and add a dish. The timeline appears here and updates as you edit.</div>
+          )}
+        </div>
+      </aside>
 
       {picker && <LibraryPicker onClose={() => setPicker(false)} onPick={(d) => { addDish(d); setPicker(false); }} />}
     </div>
