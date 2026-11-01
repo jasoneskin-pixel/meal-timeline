@@ -53,6 +53,10 @@ export interface Meal {
   inLibrary: boolean;
   /** A one-off cook of a single dish. Hidden from lists and cleaned up after serving. */
   isQuick?: boolean;
+  /** When cook mode was first opened. */
+  startedAt?: string | null;
+  /** When "Done cooking" was tapped. */
+  finishedAt?: string | null;
   notes?: string | null;
   dishes: MealDish[];
   updatedAt?: string;

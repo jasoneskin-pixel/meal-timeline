@@ -44,6 +44,8 @@ export function mealFromRow(r: any): Meal {
     remindersOn: r.reminders_on,
     inLibrary: r.in_library,
     isQuick: !!r.is_quick,
+    startedAt: r.started_at ?? null,
+    finishedAt: r.finished_at ?? null,
     notes: r.notes,
     dishes: r.dishes ?? [],
     updatedAt: r.updated_at,

@@ -39,10 +39,16 @@ function useWakeLock() {
 export default function CookMode({ meal }: { meal: Meal }) {
   const router = useRouter();
   const [showAll, setShowAll] = useState(false);
-  async function finishQuick() {
-    if (!confirm("Done cooking? This clears the timeline and any remaining reminders.")) return;
-    await api(`/api/meals/${meal.id}`, { method: "DELETE" }).catch(() => {});
-    router.push("/library");
+  // Opening cook mode marks the timeline as started so it shows in the Active tab.
+  useEffect(() => {
+    if (!meal.startedAt && !meal.finishedAt) {
+      api(`/api/meals/${meal.id}/status`, { method: "POST", json: { action: "start" } }).catch(() => {});
+    }
+  }, [meal.id, meal.startedAt, meal.finishedAt]);
+  async function finish() {
+    if (!confirm("Done cooking? This removes it from Active and cancels any remaining reminders.")) return;
+    await api(`/api/meals/${meal.id}/status`, { method: "POST", json: { action: "finish" } }).catch(() => {});
+    router.push(meal.isQuick ? "/library" : "/active");
   }
   const now = useNow();
   const awake = useWakeLock();
@@ -100,7 +106,7 @@ export default function CookMode({ meal }: { meal: Meal }) {
   return (
     <div className="space-y-5 pb-10">
       <div className="flex items-center justify-between">
-        <Link href={meal.isQuick ? "/library" : `/meals/${meal.id}`} className="text-sm font-semibold text-accent">‹ Back</Link>
+        <Link href="/active" className="text-sm font-semibold text-accent">‹ Active</Link>
         <span className="text-xs text-muted">{awake ? "☀️ Screen stays on" : ""}</span>
       </div>
       <div className="rounded-3xl bg-ink p-5 text-white">
@@ -129,9 +135,10 @@ export default function CookMode({ meal }: { meal: Meal }) {
         <button className="font-bold" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
         {showAll && <Timeline meal={meal} />}
       </section>
-      {meal.isQuick && (
-        <button className="btn-ghost w-full" onClick={finishQuick}>✅ Done cooking</button>
+      {!meal.isQuick && (
+        <Link href={`/meals/${meal.id}`} className="btn-ghost w-full">📋 Meal details</Link>
       )}
+      <button className="btn-ghost w-full" onClick={finish}>✅ Done cooking</button>
     </div>
   );
 }
