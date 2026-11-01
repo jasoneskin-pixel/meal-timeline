@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/active", label: "Active", icon: "🔥", match: (p: string) => p.startsWith("/active") || p.endsWith("/cook") },
-  { href: "/", label: "Meals", icon: "🗓️", match: (p: string) => p === "/" || (p.startsWith("/meals") && !p.endsWith("/cook")) },
   { href: "/library", label: "Library", icon: "📚", match: (p: string) => p.startsWith("/library") || p.startsWith("/dishes") },
+  { href: "/", label: "Meals", icon: "🗓️", match: (p: string) => p === "/" || (p.startsWith("/meals") && !p.endsWith("/cook")) },
   { href: "/settings", label: "Settings", icon: "⚙️", match: (p: string) => p.startsWith("/settings") },
 ];
 
