@@ -32,3 +32,9 @@ Stack: Next.js on Vercel, Supabase (Postgres + pg_cron), Web Push.
 ## Development workflow
 
 Changes are made on a branch. Vercel builds a preview URL for each branch; once approved, the branch is merged into `main`, which updates the live site.
+
+## Roadmap
+
+- **Native iOS app** with Live Activities and the Dynamic Island (current step and countdown on the lock screen). Plan: wrap this web app with Capacitor, add an ActivityKit Live Activity updated via APNs from the reminders cron, build in the cloud (GitHub Actions macOS or Codemagic), distribute with TestFlight. Requires an Apple Developer account. Deferred until features settle.
+- **Multiple users:** replace the 4-digit passcode with Google sign-in (Supabase Auth), replace the `owner` column's fixed value with the signed-in user's id, and add sharing of meals and dishes.
+- **App icon badge:** show the number of active timelines on the home-screen icon (Badging API, iOS 16.4+).
