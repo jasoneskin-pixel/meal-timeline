@@ -25,6 +25,7 @@ create table if not exists meals (
   reminder_lead_min integer not null default 5,
   reminders_on boolean not null default true,
   in_library boolean not null default false,
+  is_quick boolean not null default false,
   notes text,
   dishes jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),

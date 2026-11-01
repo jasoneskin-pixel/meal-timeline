@@ -4,9 +4,12 @@ import { syncMealReminders } from "@/lib/reminders";
 
 export async function GET() {
   await connection();
+  // Clear out one-off dish cooks a day after their serving time.
+  const cutoff = new Date(Date.now() - 24 * 3600_000).toISOString();
+  await db().from("meals").delete().eq("owner", OWNER).eq("is_quick", true).lt("serve_at", cutoff);
   const { data, error } = await db().from("meals").select("*").eq("owner", OWNER).order("serve_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data.map(mealFromRow));
+  return NextResponse.json(data.map(mealFromRow).filter((m) => !m.isQuick));
 }
 
 export async function POST(req: Request) {

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/api";
+import CookDishSheet from "@/components/CookDishSheet";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { totalMinutes } from "@/lib/schedule";
 import type { Dish, Meal } from "@/lib/types";
@@ -10,6 +11,7 @@ export default function LibraryPage() {
   const [tab, setTab] = useState<"dishes" | "meals">("dishes");
   const [dishes, setDishes] = useState<Dish[] | null>(null);
   const [meals, setMeals] = useState<Meal[] | null>(null);
+  const [cookDish, setCookDish] = useState<Dish | null>(null);
   useEffect(() => {
     api<Dish[]>("/api/dishes").then(setDishes).catch(() => setDishes([]));
     api<Meal[]>("/api/meals").then((m) => setMeals(m.filter((x) => x.inLibrary))).catch(() => setMeals([]));
@@ -31,14 +33,16 @@ export default function LibraryPage() {
           {dishes === null && <p className="text-muted">Loading...</p>}
           {dishes?.length === 0 && <p className="text-muted">No saved dishes yet. Add one here, or save one while planning a meal.</p>}
           {dishes?.map((d) => (
-            <Link key={d.id} href={`/dishes/${d.id}`} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3" style={{ borderLeft: `6px solid ${d.color}` }}>
-              <span className="text-2xl">{d.emoji}</span>
-              <span className="flex-1">
-                <span className="block font-semibold">{d.name}</span>
-                <span className="text-sm text-muted">{d.steps.length} steps · {formatDuration(totalMinutes(d.steps))}</span>
-              </span>
-              <span className="text-muted">›</span>
-            </Link>
+            <div key={d.id} className="flex items-center gap-2 rounded-2xl border border-line bg-white p-2 pl-3" style={{ borderLeft: `6px solid ${d.color}` }}>
+              <Link href={`/dishes/${d.id}`} className="flex flex-1 items-center gap-3 py-1">
+                <span className="text-2xl">{d.emoji}</span>
+                <span className="flex-1">
+                  <span className="block font-semibold">{d.name}</span>
+                  <span className="text-sm text-muted">{d.steps.length} steps · {formatDuration(totalMinutes(d.steps))}</span>
+                </span>
+              </Link>
+              <button className="btn-ghost px-3 py-2 text-sm" disabled={!d.steps.length} onClick={() => setCookDish(d)}>▶ Cook</button>
+            </div>
           ))}
         </div>
       )}
@@ -55,6 +59,7 @@ export default function LibraryPage() {
           ))}
         </div>
       )}
+      {cookDish && <CookDishSheet dish={cookDish} onClose={() => setCookDish(null)} />}
     </div>
   );
 }

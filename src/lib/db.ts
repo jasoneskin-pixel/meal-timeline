@@ -43,6 +43,7 @@ export function mealFromRow(r: any): Meal {
     reminderLeadMin: r.reminder_lead_min,
     remindersOn: r.reminders_on,
     inLibrary: r.in_library,
+    isQuick: !!r.is_quick,
     notes: r.notes,
     dishes: r.dishes ?? [],
     updatedAt: r.updated_at,
@@ -62,5 +63,7 @@ export function mealToRow(m: Partial<Meal>) {
     dishes: m.dishes ?? [],
     owner: OWNER,
     updated_at: new Date().toISOString(),
+    // Only sent when true, so regular meals keep working even before the quick-cook column exists.
+    ...(m.isQuick ? { is_quick: true } : {}),
   };
 }

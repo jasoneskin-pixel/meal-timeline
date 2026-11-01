@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
-import { DishLegend } from "./Timeline";
+import Timeline, { DishLegend } from "./Timeline";
 import { computeSchedule, type ScheduledStep } from "@/lib/schedule";
 import { formatCountdown, formatDuration, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
@@ -35,6 +37,13 @@ function useWakeLock() {
 }
 
 export default function CookMode({ meal }: { meal: Meal }) {
+  const router = useRouter();
+  const [showAll, setShowAll] = useState(false);
+  async function finishQuick() {
+    if (!confirm("Done cooking? This clears the timeline and any remaining reminders.")) return;
+    await api(`/api/meals/${meal.id}`, { method: "DELETE" }).catch(() => {});
+    router.push("/library");
+  }
   const now = useNow();
   const awake = useWakeLock();
   const sched = useMemo(() => computeSchedule(meal), [meal]);
@@ -91,7 +100,7 @@ export default function CookMode({ meal }: { meal: Meal }) {
   return (
     <div className="space-y-5 pb-10">
       <div className="flex items-center justify-between">
-        <Link href={`/meals/${meal.id}`} className="text-sm font-semibold text-accent">‹ Back</Link>
+        <Link href={meal.isQuick ? "/library" : `/meals/${meal.id}`} className="text-sm font-semibold text-accent">‹ Back</Link>
         <span className="text-xs text-muted">{awake ? "☀️ Screen stays on" : ""}</span>
       </div>
       <div className="rounded-3xl bg-ink p-5 text-white">
@@ -116,6 +125,13 @@ export default function CookMode({ meal }: { meal: Meal }) {
         <h2 className="font-bold">Up next</h2>
         {upcoming.length ? upcoming.map((s) => renderStep(s, "next")) : <p className="text-muted">No more steps. 🎉</p>}
       </section>
+      <section className="space-y-3">
+        <button className="font-bold" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
+        {showAll && <Timeline meal={meal} />}
+      </section>
+      {meal.isQuick && (
+        <button className="btn-ghost w-full" onClick={finishQuick}>✅ Done cooking</button>
+      )}
     </div>
   );
 }

@@ -51,6 +51,8 @@ export interface Meal {
   reminderLeadMin: number;
   remindersOn: boolean;
   inLibrary: boolean;
+  /** A one-off cook of a single dish. Hidden from lists and cleaned up after serving. */
+  isQuick?: boolean;
   notes?: string | null;
   dishes: MealDish[];
   updatedAt?: string;
