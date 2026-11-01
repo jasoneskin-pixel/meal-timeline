@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorker from "@/components/ServiceWorker";
+import TopBar from "@/components/TopBar";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
@@ -25,7 +26,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
         <ServiceWorker />
-        <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-[max(1rem,env(safe-area-inset-top))]">{children}</main>
+        <TopBar />
+        <main className="mx-auto w-full max-w-2xl px-4 pb-28 pt-4">{children}</main>
         <BottomNav />
       </body>
     </html>
