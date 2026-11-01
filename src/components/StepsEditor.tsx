@@ -17,7 +17,7 @@ const DAY_OPTIONS = Array.from({ length: 15 }, (_, d) => ({
   label: d === 0 ? "Serving day" : d === 1 ? "1 day before" : `${d} days before`,
 }));
 
-function PinControls({ pin, onChange }: { pin: StepPin; onChange: (p: StepPin) => void }) {
+export function PinControls({ pin, onChange }: { pin: StepPin; onChange: (p: StepPin) => void }) {
   const exact = !!pin.time;
   return (
     <div className="flex flex-wrap items-center gap-2">

@@ -6,13 +6,16 @@ import { api } from "@/components/api";
 import { useMeal } from "@/components/useMeal";
 import Timeline, { DishLegend } from "@/components/Timeline";
 import NotificationSetup from "@/components/NotificationSetup";
+import StepEditSheet from "@/components/StepEditSheet";
+import type { ScheduledStep } from "@/lib/schedule";
 import { computeSchedule } from "@/lib/schedule";
 import { formatDateTime, fromLocalInputs } from "@/lib/format";
 import type { Meal } from "@/lib/types";
 
 export default function MealPage() {
   const router = useRouter();
-  const { meal, error } = useMeal();
+  const { meal, error, setMeal } = useMeal();
+  const [editing, setEditing] = useState<ScheduledStep | null>(null);
   const [dupOpen, setDupOpen] = useState(false);
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
@@ -48,7 +51,11 @@ export default function MealPage() {
       </div>
       {meal.remindersOn && <NotificationSetup compact />}
       <DishLegend meal={meal} />
-      <Timeline meal={meal} />
+      <p className="text-xs text-muted">Tap any step to edit it.</p>
+      <Timeline meal={meal} onStepClick={setEditing} />
+      {editing && (
+        <StepEditSheet meal={meal} dishId={editing.dish.id} step={editing.step} onSaved={setMeal} onClose={() => setEditing(null)} />
+      )}
       <div className="card space-y-3">
         <button className="font-semibold" onClick={() => setDupOpen(!dupOpen)}>🔁 Plan this meal again on another date</button>
         {dupOpen && (

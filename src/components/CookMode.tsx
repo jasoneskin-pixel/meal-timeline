@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
+import StepEditSheet from "./StepEditSheet";
 import Timeline, { DishLegend } from "./Timeline";
 import { computeSchedule, type ScheduledStep } from "@/lib/schedule";
 import { formatCountdown, formatDay, formatDuration, formatTime } from "@/lib/format";
@@ -64,6 +65,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
     setShifting(false);
   }
   const [showAll, setShowAll] = useState(false);
+  const [editing, setEditing] = useState<ScheduledStep | null>(null);
   // Opening cook mode marks the timeline as started so it shows in the Active tab.
   useEffect(() => {
     if (!meal.startedAt && !meal.finishedAt) {
@@ -146,7 +148,10 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
             {done.has(s.key) ? "✓" : ""}
           </button>
           <div className="flex-1">
-            <p className="font-semibold md:text-xl">{s.dish.emoji} {s.step.title}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold md:text-xl">{s.dish.emoji} {s.step.title}</p>
+              <button type="button" aria-label="Edit step" onClick={() => setEditing(s)} className="shrink-0 rounded-lg px-1.5 text-sm text-muted hover:bg-bg md:text-base">✏️</button>
+            </div>
             <p className="text-sm text-muted md:text-base">
               {s.dish.name} · {s.step.kind === "active" ? "✋ hands-on" : "⏳ hands-off"}
               {s.step.ovenTemp ? ` · 🔥 ${s.step.ovenTemp}°F` : ""} ·{" "}
@@ -236,7 +241,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       </section>
       <section className="space-y-3 lg:hidden">
         <button className="font-bold md:text-xl" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
-        {showAll && <Timeline meal={meal} />}
+        {showAll && <Timeline meal={meal} onStepClick={setEditing} />}
       </section>
       {!meal.isQuick && (
         <Link href={`/meals/${meal.id}`} className="btn-ghost w-full">📋 Meal details</Link>
@@ -244,11 +249,17 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       <button className="btn-ghost w-full" onClick={finish}>✅ Done cooking</button>
     </div>
 
+      {editing && (
+        <StepEditSheet
+          meal={meal} dishId={editing.dish.id} step={editing.step}
+          onSaved={(m) => onMealChange?.(m)} onClose={() => setEditing(null)}
+        />
+      )}
       {/* Kitchen display: on iPad landscape and desktop the full timeline is always visible. */}
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
         <div className="space-y-3">
           <h2 className="text-xl font-bold">Full timeline</h2>
-          <Timeline meal={meal} />
+          <Timeline meal={meal} onStepClick={setEditing} />
         </div>
       </aside>
     </div>

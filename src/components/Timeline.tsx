@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { computeSchedule, type TimelineItem } from "@/lib/schedule";
+import { computeSchedule, type ScheduledStep, type TimelineItem } from "@/lib/schedule";
 import { dayKey, formatDay, formatDuration, formatTime } from "@/lib/format";
 import { HOLD_LABELS, WINDOW_LABELS, type Meal } from "@/lib/types";
 
@@ -23,7 +23,7 @@ export function DishLegend({ meal }: { meal: Meal }) {
   );
 }
 
-export default function Timeline({ meal }: { meal: Meal }) {
+export default function Timeline({ meal, onStepClick }: { meal: Meal; onStepClick?: (s: ScheduledStep) => void }) {
   const sched = computeSchedule(meal);
   const conflictKeys = new Set(sched.conflicts.flatMap((c) => c.keys));
   const [now] = useState(() => Date.now());
@@ -61,10 +61,14 @@ export default function Timeline({ meal }: { meal: Meal }) {
                 </div>
                 {item.type === "step" ? (
                   <div
-                    className={`flex-1 rounded-xl border bg-white p-3 ${conflictKeys.has(item.key) ? "border-red-300" : "border-line"}`}
+                    className={`relative flex-1 rounded-xl border bg-white p-3 ${conflictKeys.has(item.key) ? "border-red-300" : "border-line"} ${onStepClick ? "cursor-pointer transition hover:shadow-sm active:scale-[0.99]" : ""}`}
+                    onClick={onStepClick ? () => onStepClick(item) : undefined}
+                    role={onStepClick ? "button" : undefined}
+                    aria-label={onStepClick ? `Edit ${item.step.title}` : undefined}
                     style={{ borderLeft: `6px solid ${color}`, backgroundColor: `${color}0d` }}
                   >
                     <div className="flex items-start gap-2">
+                      {onStepClick && <span className="absolute right-2.5 top-2.5 text-xs text-muted">✏️</span>}
                       <span className="text-xl leading-6">{item.dish.emoji}</span>
                       <div className="flex-1">
                         <p className="font-semibold leading-6">{item.step.title || "Untitled step"}</p>
