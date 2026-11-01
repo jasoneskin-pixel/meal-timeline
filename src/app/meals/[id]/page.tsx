@@ -31,12 +31,12 @@ export default function MealPage() {
   async function remove() {
     if (!meal || !confirm(`Delete "${meal.name}"?`)) return;
     await api(`/api/meals/${meal.id}`, { method: "DELETE" });
-    router.push("/");
+    router.push("/meals");
   }
 
   return (
     <div className="space-y-5">
-      <Link href="/" className="text-sm font-semibold text-accent">‹ Meals</Link>
+      <Link href="/meals" className="text-sm font-semibold text-accent">‹ Meals</Link>
       <header>
         <h1 className="text-2xl font-bold">{meal.inLibrary ? "⭐ " : ""}{meal.name}</h1>
         <p className="text-muted">Serve {formatDateTime(meal.serveAt)}{meal.deadlineMode === "individual" ? " (dishes have their own times)" : ""}</p>
