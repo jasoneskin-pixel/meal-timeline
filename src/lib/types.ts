@@ -69,6 +69,8 @@ export interface MealDish {
   holdMethod: HoldMethod;
   /** For make-ahead dishes: how many minutes before serving the prep should be finished. */
   readyAheadMin: number;
+  /** For make-ahead dishes: an exact "prepared ahead by" time (ISO). When set, it is used instead of readyAheadMin. */
+  readyAt?: string | null;
   /** Individual serve time (ISO). Used only when the meal's deadlineMode is "individual". */
   serveAt?: string | null;
   /** The meal's "Other tasks" list: pinned items not tied to a dish. */

@@ -203,9 +203,13 @@ export function computeSchedule(meal: Meal): MealSchedule {
       const prep = dish.steps.filter((s) => s.phase !== "finish");
       const finish = dish.steps.filter((s) => s.phase === "finish");
       const finishMin = dishSpanMinutes(finish.filter((s) => !s.pin));
-      // Prep must be done readyAheadMin before serving, but never later than when finishing steps begin.
-      const ahead = Math.max(dish.readyAheadMin, finishMin);
-      const prepEnd = new Date(target.getTime() - ahead * MIN);
+      // Prep is done by the chosen "prepared ahead by" time (or readyAheadMin before serving),
+      // but never later than when the finishing steps have to begin.
+      const latest = target.getTime() - finishMin * MIN;
+      const readyAt = dish.readyAt ? new Date(dish.readyAt).getTime() : NaN;
+      const prepEnd = new Date(
+        Number.isFinite(readyAt) ? Math.min(readyAt, latest) : Math.min(target.getTime() - dish.readyAheadMin * MIN, latest),
+      );
       push(layout(prep, prepEnd, tz));
       if (prep.length) {
         markers.push({

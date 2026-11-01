@@ -51,6 +51,22 @@ function DateTimeInputs({ iso, onChange }: { iso: string | null | undefined; onC
   );
 }
 
+function dishServeIso(dish: MealDish, individual: boolean, mealServeAt: string): string | null {
+  return (individual && dish.serveAt) || mealServeAt || null;
+}
+
+/** "That's 3 days 2 hr before serving" under a prepared-by date. */
+function ReadyAtHint({ dish, individual, mealServeAt }: { dish: MealDish; individual: boolean; mealServeAt: string }) {
+  const serve = dishServeIso(dish, individual, mealServeAt);
+  if (!serve || !dish.readyAt) return null;
+  const diff = Math.round((new Date(serve).getTime() - new Date(dish.readyAt).getTime()) / 60_000);
+  if (diff < 0) return <p className="text-sm text-red-700">That&apos;s after serving time. Pick an earlier date or time.</p>;
+  const days = Math.floor(diff / 1440);
+  const rest = diff % 1440;
+  const text = days ? `${days} day${days === 1 ? "" : "s"}${rest ? ` ${formatDuration(rest)}` : ""}` : formatDuration(diff);
+  return <p className="text-sm text-muted">That&apos;s {text} before serving.</p>;
+}
+
 function MealDishCard({
   dish, individual, mealServeAt, onChange, onRemove, onMove,
 }: {
@@ -114,9 +130,36 @@ function MealDishCard({
                     {Object.entries(HOLD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="label">Have it done this long before serving</label>
-                  <DurationInput minutes={dish.readyAheadMin} onChange={(readyAheadMin) => set({ readyAheadMin })} />
+                <div className="space-y-2">
+                  <label className="label">When should it be prepared by?</label>
+                  <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-line text-sm font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => set({ readyAt: null })}
+                      className={`py-2 ${!dish.readyAt ? "bg-ink text-white" : "bg-white text-muted"}`}
+                    >
+                      Time before serving
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const serve = dishServeIso(dish, individual, mealServeAt);
+                        const base = serve ? new Date(new Date(serve).getTime() - dish.readyAheadMin * 60_000) : new Date();
+                        set({ readyAt: base.toISOString() });
+                      }}
+                      className={`py-2 ${dish.readyAt ? "bg-ink text-white" : "bg-white text-muted"}`}
+                    >
+                      A date &amp; time
+                    </button>
+                  </div>
+                  {dish.readyAt ? (
+                    <>
+                      <DateTimeInputs key={`ready-${dish.id}`} iso={dish.readyAt} onChange={(readyAt) => readyAt && set({ readyAt })} />
+                      <ReadyAtHint dish={dish} individual={individual} mealServeAt={mealServeAt} />
+                    </>
+                  ) : (
+                    <DurationInput minutes={dish.readyAheadMin} onChange={(readyAheadMin) => set({ readyAheadMin })} />
+                  )}
                 </div>
                 <p className="text-sm text-muted">Steps marked &quot;Finishing step&quot; (like reheating) are scheduled right before serving instead.</p>
               </>

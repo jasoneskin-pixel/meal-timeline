@@ -51,7 +51,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
     const updated: Meal = {
       ...meal,
       serveAt: move(meal.serveAt) ?? meal.serveAt,
-      dishes: meal.dishes.map((d) => ({ ...d, serveAt: move(d.serveAt) })),
+      dishes: meal.dishes.map((d) => ({ ...d, serveAt: move(d.serveAt), readyAt: move(d.readyAt) })),
     };
     try {
       const saved = await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated });

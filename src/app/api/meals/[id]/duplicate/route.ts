@@ -24,6 +24,7 @@ export async function POST(req: Request, { params }: Ctx) {
       ...d,
       id: newId(),
       serveAt: d.serveAt ? new Date(new Date(d.serveAt).getTime() + shift).toISOString() : null,
+      readyAt: d.readyAt ? new Date(new Date(d.readyAt).getTime() + shift).toISOString() : null,
     })),
   };
   const ins = await db().from("meals").insert(mealToRow(copy)).select().single();
