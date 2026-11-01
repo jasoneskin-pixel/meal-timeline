@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/api";
+import SwipeToDelete from "@/components/SwipeToDelete";
+import { useUndoToast } from "@/components/UndoToast";
 import { computeSchedule } from "@/lib/schedule";
 import { formatDateTime, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
@@ -25,9 +27,33 @@ function MealCard({ meal }: { meal: Meal }) {
 export default function Home() {
   const [meals, setMeals] = useState<Meal[] | null>(null);
   const [error, setError] = useState("");
+  const { toast, show } = useUndoToast();
+  const load = () => api<Meal[]>("/api/meals").then(setMeals).catch((e) => setError(e.message));
   useEffect(() => {
-    api<Meal[]>("/api/meals").then(setMeals).catch((e) => setError(e.message));
+    load();
   }, []);
+
+  async function remove(meal: Meal) {
+    setMeals((list) => (list ?? []).filter((m) => m.id !== meal.id));
+    try {
+      await api(`/api/meals/${meal.id}`, { method: "DELETE" });
+      show({
+        label: meal.name,
+        undo: async () => {
+          await api("/api/meals", { method: "POST", json: meal });
+          await load();
+        },
+      });
+    } catch (e) {
+      setError((e as Error).message);
+      load();
+    }
+  }
+  const row = (m: Meal) => (
+    <SwipeToDelete key={m.id} onDelete={() => remove(m)}>
+      <MealCard meal={m} />
+    </SwipeToDelete>
+  );
   const [cutoff] = useState(() => Date.now() - 6 * 3600_000);
   const upcoming = (meals ?? []).filter((m) => new Date(m.serveAt).getTime() >= cutoff).reverse();
   const past = (meals ?? []).filter((m) => new Date(m.serveAt).getTime() < cutoff);
@@ -50,15 +76,16 @@ export default function Home() {
       {upcoming.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Upcoming</h2>
-          {upcoming.map((m) => <MealCard key={m.id} meal={m} />)}
+          {upcoming.map(row)}
         </section>
       )}
       {past.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Past</h2>
-          {past.map((m) => <MealCard key={m.id} meal={m} />)}
+          {past.map(row)}
         </section>
       )}
+      {toast}
     </div>
   );
 }

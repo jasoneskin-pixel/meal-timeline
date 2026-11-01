@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/api";
 import CookDishSheet from "@/components/CookDishSheet";
+import SwipeToDelete from "@/components/SwipeToDelete";
+import { useUndoToast } from "@/components/UndoToast";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { totalMinutes } from "@/lib/schedule";
 import type { Dish, Meal } from "@/lib/types";
@@ -12,10 +14,36 @@ export default function LibraryPage() {
   const [dishes, setDishes] = useState<Dish[] | null>(null);
   const [meals, setMeals] = useState<Meal[] | null>(null);
   const [cookDish, setCookDish] = useState<Dish | null>(null);
+  const [error, setError] = useState("");
+  const { toast, show } = useUndoToast();
+  const loadDishes = () => api<Dish[]>("/api/dishes").then(setDishes).catch(() => setDishes([]));
+  const loadMeals = () => api<Meal[]>("/api/meals").then((m) => setMeals(m.filter((x) => x.inLibrary))).catch(() => setMeals([]));
   useEffect(() => {
-    api<Dish[]>("/api/dishes").then(setDishes).catch(() => setDishes([]));
-    api<Meal[]>("/api/meals").then((m) => setMeals(m.filter((x) => x.inLibrary))).catch(() => setMeals([]));
+    loadDishes();
+    loadMeals();
   }, []);
+
+  async function removeDish(d: Dish) {
+    setDishes((list) => (list ?? []).filter((x) => x.id !== d.id));
+    try {
+      await api(`/api/dishes/${d.id}`, { method: "DELETE" });
+      show({ label: d.name, undo: async () => { await api("/api/dishes", { method: "POST", json: d }); await loadDishes(); } });
+    } catch (e) {
+      setError((e as Error).message);
+      loadDishes();
+    }
+  }
+
+  async function removeMeal(m: Meal) {
+    setMeals((list) => (list ?? []).filter((x) => x.id !== m.id));
+    try {
+      await api(`/api/meals/${m.id}`, { method: "DELETE" });
+      show({ label: m.name, undo: async () => { await api("/api/meals", { method: "POST", json: m }); await loadMeals(); } });
+    } catch (e) {
+      setError((e as Error).message);
+      loadMeals();
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -33,7 +61,8 @@ export default function LibraryPage() {
           {dishes === null && <p className="text-muted">Loading...</p>}
           {dishes?.length === 0 && <p className="text-muted">No saved dishes yet. Add one here, or save one while planning a meal.</p>}
           {dishes?.map((d) => (
-            <div key={d.id} className="flex items-center gap-2 rounded-2xl border border-line bg-white p-2 pl-3" style={{ borderLeft: `6px solid ${d.color}` }}>
+            <SwipeToDelete key={d.id} onDelete={() => removeDish(d)}>
+            <div className="flex items-center gap-2 rounded-2xl border border-line bg-white p-2 pl-3" style={{ borderLeft: `6px solid ${d.color}` }}>
               <Link href={`/dishes/${d.id}`} className="flex flex-1 items-center gap-3 py-1">
                 <span className="text-2xl">{d.emoji}</span>
                 <span className="flex-1">
@@ -43,6 +72,7 @@ export default function LibraryPage() {
               </Link>
               <button className="btn-ghost px-3 py-2 text-sm" disabled={!d.steps.length} onClick={() => setCookDish(d)}>▶ Cook</button>
             </div>
+            </SwipeToDelete>
           ))}
         </div>
       )}
@@ -52,14 +82,19 @@ export default function LibraryPage() {
           {meals === null && <p className="text-muted">Loading...</p>}
           {meals?.length === 0 && <p className="text-muted">No saved meals yet. Turn on &quot;Save this meal to the library&quot; when editing a meal.</p>}
           {meals?.map((m) => (
-            <Link key={m.id} href={`/meals/${m.id}`} className="card block">
-              <p className="font-bold">⭐ {m.name} <span className="ml-1">{m.dishes.map((d) => d.emoji).join("")}</span></p>
-              <p className="text-sm text-muted">Last planned for {formatDateTime(m.serveAt)} · {m.dishes.length} dishes</p>
-            </Link>
+            <SwipeToDelete key={m.id} onDelete={() => removeMeal(m)}>
+              <Link href={`/meals/${m.id}`} className="card block">
+                <p className="font-bold">⭐ {m.name} <span className="ml-1">{m.dishes.map((d) => d.emoji).join("")}</span></p>
+                <p className="text-sm text-muted">Last planned for {formatDateTime(m.serveAt)} · {m.dishes.length} dishes</p>
+              </Link>
+            </SwipeToDelete>
           ))}
         </div>
       )}
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      {dishes && dishes.length > 0 && tab === "dishes" && <p className="text-center text-xs text-muted">Tip: swipe left on an item to delete it.</p>}
       {cookDish && <CookDishSheet dish={cookDish} onClose={() => setCookDish(null)} />}
+      {toast}
     </div>
   );
 }
