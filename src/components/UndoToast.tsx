@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Pending {
   label: string;
+  /** Overrides the default "Deleted <label>" text. */
+  message?: string;
   undo: () => Promise<void> | void;
 }
 
@@ -22,7 +24,7 @@ export function useUndoToast() {
   const toast = pending ? (
     <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4">
       <div className="flex w-full max-w-md items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-lg">
-        <span className="flex-1 truncate text-sm">Deleted {pending.label}</span>
+        <span className="flex-1 truncate text-sm">{pending.message ?? `Deleted ${pending.label}`}</span>
         <button
           className="text-sm font-bold text-orange-300"
           onClick={async () => {

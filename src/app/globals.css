@@ -59,3 +59,10 @@ input, select, textarea {
 @utility chip {
   @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
 }
+
+/* Keep links and images inside swipeable rows from being dragged or long-press previewed. */
+[style*="pan-y"] a,
+[style*="pan-y"] img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}

@@ -4,7 +4,9 @@ import { useRef, useState, type ReactNode } from "react";
 const OPEN = -92; // how far the row slides to reveal the button
 
 /** Swipe a row left to reveal a Delete button (iOS-style). Vertical scrolling is left to the browser. */
-export default function SwipeToDelete({ children, onDelete }: { children: ReactNode; onDelete: () => void }) {
+export default function SwipeToDelete({
+  children, onDelete, label = "🗑️ Delete", color = "#dc2626",
+}: { children: ReactNode; onDelete: () => void; label?: string; color?: string }) {
   const [x, setX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const xRef = useRef(0);
@@ -20,16 +22,16 @@ export default function SwipeToDelete({ children, onDelete }: { children: ReactN
     <div className="relative overflow-hidden rounded-2xl">
       <button
         type="button"
-        aria-label="Delete"
+        aria-label={label.replace(/^\S+\s/, "")}
         onClick={() => {
           setPos(0);
           onDelete();
         }}
-        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-600 font-semibold text-white"
-        style={{ width: -OPEN + 24, paddingLeft: 24, opacity: x < 0 ? 1 : 0 }}
+        className="absolute inset-y-0 right-0 flex items-center justify-center font-semibold text-white"
+        style={{ width: -OPEN + 24, paddingLeft: 24, opacity: x < 0 ? 1 : 0, backgroundColor: color }}
         tabIndex={x < 0 ? 0 : -1}
       >
-        🗑️ Delete
+        {label}
       </button>
       <div
         className="relative"
@@ -37,7 +39,11 @@ export default function SwipeToDelete({ children, onDelete }: { children: ReactN
           transform: `translateX(${x}px)`,
           transition: dragging ? "none" : "transform 200ms ease",
           touchAction: "pan-y",
+          WebkitUserSelect: "none",
+          userSelect: "none",
         }}
+        // Links inside the row would otherwise start a native drag and cancel the swipe.
+        onDragStart={(e) => e.preventDefault()}
         onPointerDown={(e) => {
           if (e.pointerType === "mouse" && e.button !== 0) return;
           start.current = { x: e.clientX, y: e.clientY, base: xRef.current };

@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/api";
+import SwipeToDelete from "@/components/SwipeToDelete";
+import { useUndoToast } from "@/components/UndoToast";
 import { computeSchedule } from "@/lib/schedule";
 import { lastServe } from "@/lib/active";
 import { formatCountdown, formatDateTime, formatTime } from "@/lib/format";
@@ -58,8 +60,29 @@ export default function ActivePage() {
   const [meals, setMeals] = useState<Meal[] | null>(null);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const { toast, show } = useUndoToast();
+  const load = () => api<Meal[]>("/api/active").then(setMeals).catch((e) => setError(e.message));
+
+  async function finish(m: Meal) {
+    setMeals((list) => (list ?? []).filter((x) => x.id !== m.id));
+    try {
+      await api(`/api/meals/${m.id}/status`, { method: "POST", json: { action: "finish" } });
+      show({
+        label: m.name,
+        message: `Finished ${m.name}`,
+        undo: async () => {
+          await api(`/api/meals/${m.id}/status`, { method: "POST", json: { action: "resume" } });
+          await load();
+        },
+      });
+    } catch (e) {
+      setError((e as Error).message);
+      load();
+    }
+  }
+
   useEffect(() => {
-    api<Meal[]>("/api/active").then(setMeals).catch((e) => setError(e.message));
+    load();
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -78,7 +101,13 @@ export default function ActivePage() {
           </p>
         </div>
       )}
-      {meals?.map((m) => <ActiveCard key={m.id} meal={m} now={now} />)}
+      {meals?.map((m) => (
+        <SwipeToDelete key={m.id} label="✅ Done" color="#2a9d8f" onDelete={() => finish(m)}>
+          <ActiveCard meal={m} now={now} />
+        </SwipeToDelete>
+      ))}
+      {meals && meals.length > 0 && <p className="text-center text-xs text-muted">Tip: swipe left on a card when you&apos;re done cooking.</p>}
+      {toast}
     </div>
   );
 }
