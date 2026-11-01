@@ -11,7 +11,7 @@ import type { Meal } from "@/lib/types";
 
 function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
   const sched = computeSchedule(meal);
-  const current = sched.steps.filter((s) => s.start.getTime() <= now && now < s.end.getTime());
+  const current = sched.steps.filter((s) => s.start.getTime() <= now && now < (s.flexible ? s.flexible.until : s.end).getTime());
   const next = sched.steps.find((s) => s.start.getTime() > now);
   const serve = lastServe(meal).getTime();
   const colors = meal.dishes.map((d) => d.color);
@@ -38,7 +38,9 @@ function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
           current.map((s) => (
             <p key={s.key} className="text-sm">
               <span className="font-semibold">Now:</span> {s.dish.emoji} {s.step.title}{" "}
-              <span className="text-muted">({formatCountdown(s.end.getTime() - now)} left)</span>
+              <span className="text-muted">
+                ({s.flexible ? `anytime before ${formatTime(s.flexible.until)}` : `${formatCountdown(s.end.getTime() - now)} left`})
+              </span>
             </p>
           ))
         ) : (

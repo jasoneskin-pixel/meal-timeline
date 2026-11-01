@@ -182,6 +182,19 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
   const [error, setError] = useState("");
   const set = (patch: Partial<Draft>) => setMeal((m) => ({ ...m, ...patch }));
   const usedColors = meal.dishes.map((d) => d.color);
+  const tasks = meal.dishes.find((d) => d.isTasks);
+
+  function setTasks(steps: MealDish["steps"]) {
+    if (tasks) {
+      set({ dishes: steps.length ? meal.dishes.map((d) => (d.isTasks ? { ...d, steps } : d)) : meal.dishes.filter((d) => !d.isTasks) });
+    } else if (steps.length) {
+      const t: MealDish = {
+        id: newId(), name: "Other tasks", emoji: "📌", color: "#78716c", steps,
+        mode: "fresh", holdMethod: "fridge", readyAheadMin: 0, serveAt: null, isTasks: true,
+      };
+      set({ dishes: [...meal.dishes, t] });
+    }
+  }
 
   function addDish(base?: Dish) {
     const color = base && !usedColors.includes(base.color) ? base.color : pickUnusedColor(usedColors);
@@ -261,7 +274,7 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
       <section className="space-y-3">
         <h2 className="text-lg font-bold">Dishes</h2>
         {meal.dishes.length > 0 && <DishLegend meal={meal as Meal} />}
-        {meal.dishes.map((d, i) => (
+        {meal.dishes.map((d, i) => d.isTasks ? null : (
           <MealDishCard
             key={d.id}
             dish={d}
@@ -276,6 +289,20 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
           <button type="button" className="btn-ghost" onClick={() => setPicker(true)}>📚 From library</button>
           <button type="button" className="btn-ghost" onClick={() => addDish()}>+ New dish</button>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-bold">📌 Other tasks</h2>
+          <p className="text-sm text-muted">Things that aren&apos;t part of a dish, like errands or leaving the house. Each one is pinned to a time you choose.</p>
+        </div>
+        {tasks ? (
+          <div className="rounded-2xl border border-line bg-white p-3" style={{ borderLeft: `6px solid ${tasks.color}` }}>
+            <StepsEditor steps={tasks.steps} color={tasks.color} onChange={setTasks} tasksOnly />
+          </div>
+        ) : (
+          <button type="button" className="btn-ghost w-full" onClick={() => setTasks([blankStep(true)])}>+ Add a task</button>
+        )}
       </section>
 
       <div className="card space-y-3">

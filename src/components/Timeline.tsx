@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { computeSchedule, type TimelineItem } from "@/lib/schedule";
 import { dayKey, formatDay, formatDuration, formatTime } from "@/lib/format";
-import { HOLD_LABELS, type Meal } from "@/lib/types";
+import { HOLD_LABELS, WINDOW_LABELS, type Meal } from "@/lib/types";
 
 const HOLD_ICON = { room_temp: "🌡️", fridge: "🧊", warm_oven: "♨️", freezer: "❄️" } as const;
 
@@ -56,7 +56,9 @@ export default function Timeline({ meal }: { meal: Meal }) {
             <li key={item.key}>
               {showDay && <div className="mb-2 mt-4 text-xs font-bold uppercase tracking-wide text-muted first:mt-0">{formatDay(t)}</div>}
               <div className="flex gap-3">
-                <div className="w-[4.5rem] shrink-0 pt-2.5 text-right text-sm font-semibold tabular-nums">{formatTime(t)}</div>
+                <div className="w-[4.5rem] shrink-0 pt-2.5 text-right text-sm font-semibold tabular-nums">
+                  {item.type === "step" && item.flexible ? <span className="text-muted">{WINDOW_LABELS[item.flexible.window].replace(" that day", "")}</span> : formatTime(t)}
+                </div>
                 {item.type === "step" ? (
                   <div
                     className={`flex-1 rounded-xl border bg-white p-3 ${conflictKeys.has(item.key) ? "border-red-300" : "border-line"}`}
@@ -67,7 +69,9 @@ export default function Timeline({ meal }: { meal: Meal }) {
                       <div className="flex-1">
                         <p className="font-semibold leading-6">{item.step.title || "Untitled step"}</p>
                         <p className="text-sm text-muted">
-                          {item.dish.name} · {formatDuration(item.step.minutes)} · until {formatTime(item.end)}
+                          {item.dish.name}
+                          {item.step.minutes > 0 && <> · {formatDuration(item.step.minutes)}{!item.flexible && <> · until {formatTime(item.end)}</>}</>}
+                          {item.flexible && <> · anytime before {formatTime(item.flexible.until)}</>}
                         </p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           <span className={`chip ${item.step.kind === "active" ? "bg-ink text-white" : "bg-line text-ink"}`}>
@@ -75,6 +79,11 @@ export default function Timeline({ meal }: { meal: Meal }) {
                           </span>
                           {item.step.ovenTemp ? <span className="chip bg-orange-100 text-orange-900">🔥 {item.step.ovenTemp}°F</span> : null}
                           {item.step.phase === "finish" && item.dish.mode === "make_ahead" ? <span className="chip bg-sky-100 text-sky-900">Finishing</span> : null}
+                          {item.flexible ? (
+                            <span className="chip bg-violet-100 text-violet-900">🕐 Flexible</span>
+                          ) : item.pinned ? (
+                            <span className="chip bg-stone-200 text-stone-800">📌 Pinned</span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

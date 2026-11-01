@@ -2,7 +2,7 @@ import "server-only";
 import { db, OWNER } from "./db";
 import { computeSchedule } from "./schedule";
 import { formatDuration, formatTime } from "./format";
-import { HOLD_LABELS, type Meal } from "./types";
+import { HOLD_LABELS, WINDOW_LABELS, type Meal } from "./types";
 
 interface NotificationRow {
   owner: string;
@@ -30,11 +30,21 @@ export function buildNotifications(meal: Meal, now = new Date()): NotificationRo
   for (const s of sched.steps) {
     const label = `${s.dish.emoji} ${s.step.title}`;
     const detail = `${s.dish.name} · ${formatDuration(s.step.minutes)}${s.step.ovenTemp ? ` · ${s.step.ovenTemp}°F` : ""}`;
+    if (s.flexible) {
+      // Flexible: one heads-up when the window opens.
+      add(
+        s.start,
+        "step_window",
+        `${WINDOW_LABELS[s.flexible.window]}: ${label}`,
+        `Anytime before ${formatTime(s.flexible.until, tz)}. ${detail}`,
+      );
+      continue;
+    }
     add(
       new Date(s.start.getTime() - lead * 60_000),
       "step_start",
-      lead > 0 ? `In ${lead} min: ${label}` : `Start now: ${label}`,
-      `Starts at ${formatTime(s.start, tz)}. ${detail}`,
+      lead > 0 ? `In ${lead} min: ${label}` : `Now: ${label}`,
+      s.step.minutes > 0 ? `Starts at ${formatTime(s.start, tz)}. ${detail}` : `At ${formatTime(s.start, tz)}. ${s.dish.name}`,
     );
     if (s.step.kind === "passive" && s.step.minutes > 0) {
       add(s.end, "timer_end", `⏰ Done: ${label}`, `${s.dish.name}: ${s.step.title} timer is up.`);

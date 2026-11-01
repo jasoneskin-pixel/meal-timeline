@@ -6,7 +6,7 @@ import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
 import Timeline, { DishLegend } from "./Timeline";
 import { computeSchedule, type ScheduledStep } from "@/lib/schedule";
-import { formatCountdown, formatDuration, formatTime } from "@/lib/format";
+import { formatCountdown, formatDay, formatDuration, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
 
 function useNow(ms = 1000) {
@@ -89,8 +89,9 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
     try { localStorage.setItem(storeKey, JSON.stringify([...next])); } catch {}
   };
 
-  const current = sched.steps.filter((s) => s.start.getTime() <= now && now < s.end.getTime() && !done.has(s.key));
-  const overdue = sched.steps.filter((s) => s.end.getTime() <= now && !done.has(s.key));
+  const endOf = (s: ScheduledStep) => (s.flexible ? s.flexible.until : s.end).getTime();
+  const current = sched.steps.filter((s) => s.start.getTime() <= now && now < endOf(s) && !done.has(s.key));
+  const overdue = sched.steps.filter((s) => endOf(s) <= now && !done.has(s.key));
   const upcoming = sched.steps.filter((s) => s.start.getTime() > now).slice(0, 4);
   const serveMs = new Date(meal.serveAt).getTime() - now;
 
@@ -110,9 +111,17 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
             <p className="font-semibold md:text-xl">{s.dish.emoji} {s.step.title}</p>
             <p className="text-sm text-muted md:text-base">
               {s.dish.name} · {s.step.kind === "active" ? "✋ hands-on" : "⏳ hands-off"}
-              {s.step.ovenTemp ? ` · 🔥 ${s.step.ovenTemp}°F` : ""} · {formatTime(s.start)} to {formatTime(s.end)}
+              {s.step.ovenTemp ? ` · 🔥 ${s.step.ovenTemp}°F` : ""} ·{" "}
+              {s.flexible
+                ? `🕐 anytime ${formatDay(s.start)} before ${formatTime(s.flexible.until)}`
+                : s.step.minutes > 0
+                  ? `${formatTime(s.start)} to ${formatTime(s.end)}`
+                  : `📌 at ${formatTime(s.start)}`}
             </p>
-            {mode === "now" && (
+            {mode === "now" && s.flexible && (
+              <p className="mt-1 text-sm font-semibold md:text-lg">Do this anytime in the next {formatCountdown(s.flexible.until.getTime() - now)}</p>
+            )}
+            {mode === "now" && !s.flexible && (
               <div className="mt-2">
                 <div className="h-2 overflow-hidden rounded-full bg-line md:h-3">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: s.dish.color }} />
@@ -120,7 +129,12 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
                 <p className="mt-1 text-right font-mono text-lg font-bold tabular-nums md:text-3xl">{formatCountdown(s.end.getTime() - now)} left</p>
               </div>
             )}
-            {mode === "next" && <p className="mt-1 text-sm font-semibold md:text-lg">Starts in {formatCountdown(s.start.getTime() - now)} · {formatDuration(s.step.minutes)}</p>}
+            {mode === "next" && (
+              <p className="mt-1 text-sm font-semibold md:text-lg">
+                {s.flexible ? "Window opens" : s.step.minutes > 0 ? "Starts" : "Happens"} in {formatCountdown(s.start.getTime() - now)}
+                {s.step.minutes > 0 ? ` · ${formatDuration(s.step.minutes)}` : ""}
+              </p>
+            )}
             {mode === "late" && <p className="mt-1 text-sm font-semibold text-red-700">Should be done. Tap the circle when finished.</p>}
           </div>
         </div>
