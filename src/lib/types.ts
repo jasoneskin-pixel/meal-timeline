@@ -36,7 +36,13 @@ export interface Step {
   /** "finish" steps are done right before serving when a dish is made ahead. */
   phase: StepPhase;
   pin?: StepPin | null;
+  /** Hands-off step that runs alongside the following steps instead of blocking them. */
+  background?: boolean;
+  /** For background steps: the id of the later step it runs until, UNTIL_SERVE, or empty for "the next regular step". */
+  until?: string | null;
 }
+
+export const UNTIL_SERVE = "__serve";
 
 export interface Dish {
   id: string;

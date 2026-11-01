@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "./api";
 import DurationInput from "./DurationInput";
 import { PinControls } from "./StepsEditor";
+import BackgroundControls from "./BackgroundControls";
 import type { Meal, Step } from "@/lib/types";
 
 /** Edit one step of a meal from its timeline or cook mode. Changes apply to this meal; optionally to the Library dish too. */
@@ -80,7 +81,7 @@ export default function StepEditSheet({
               <DurationInput minutes={draft.minutes} onChange={(minutes) => set({ minutes })} />
               <div className="flex overflow-hidden rounded-xl border border-line text-sm font-semibold">
                 {(["active", "passive"] as const).map((k) => (
-                  <button key={k} type="button" onClick={() => set({ kind: k })} className={`px-3 py-2 ${draft.kind === k ? "bg-ink text-white" : "bg-white text-muted"}`}>
+                  <button key={k} type="button" onClick={() => set(k === "active" ? { kind: k, background: false, until: null } : { kind: k })} className={`px-3 py-2 ${draft.kind === k ? "bg-ink text-white" : "bg-white text-muted"}`}>
                     {k === "active" ? "✋ Hands-on" : "⏳ Hands-off"}
                   </button>
                 ))}
@@ -91,7 +92,7 @@ export default function StepEditSheet({
                 <label className="flex items-center gap-2 text-sm font-semibold">
                   <input
                     type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={!!draft.pin}
-                    onChange={(e) => set({ pin: e.target.checked ? { daysBefore: 0, time: "12:00", window: null } : null })}
+                    onChange={(e) => set(e.target.checked ? { pin: { daysBefore: 0, time: "12:00", window: null }, background: false, until: null } : { pin: null })}
                   />
                   📌 Pin to a time
                 </label>
@@ -101,6 +102,13 @@ export default function StepEditSheet({
               )}
               {!isTask && !draft.pin && <p className="text-xs text-muted">Unpinned steps are scheduled automatically around serving time.</p>}
             </div>
+            {!isTask && (
+              <BackgroundControls
+                step={draft}
+                later={dish.steps.slice(dish.steps.findIndex((s) => s.id === step.id) + 1)}
+                onChange={(patch) => set(patch)}
+              />
+            )}
             {!isTask && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                 <label className="flex items-center gap-2">

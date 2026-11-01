@@ -14,6 +14,12 @@ import { HOLD_LABELS, type Dish, type HoldMethod, type Meal, type MealDish } fro
 
 type Draft = Omit<Meal, "id"> & { id?: string };
 
+/** Copy steps with fresh ids, keeping "runs until" links pointing at the copied steps. */
+function copySteps(steps: MealDish["steps"]): MealDish["steps"] {
+  const ids = new Map(steps.map((s) => [s.id, newId()]));
+  return steps.map((s) => ({ ...s, id: ids.get(s.id)!, until: s.until && ids.has(s.until) ? ids.get(s.until)! : s.until ?? null }));
+}
+
 function blankMeal(): Draft {
   return {
     name: "",
@@ -204,7 +210,7 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
       name: base?.name ?? "",
       emoji: base?.emoji ?? "🍲",
       color,
-      steps: base ? base.steps.map((s) => ({ ...s, id: newId() })) : [blankStep()],
+      steps: base ? copySteps(base.steps) : [blankStep()],
       mode: "fresh",
       holdMethod: "fridge",
       readyAheadMin: 120,

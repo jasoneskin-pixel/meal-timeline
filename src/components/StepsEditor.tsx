@@ -1,5 +1,6 @@
 "use client";
 import DurationInput from "./DurationInput";
+import BackgroundControls from "./BackgroundControls";
 import { newId } from "@/lib/ids";
 import { formatDuration } from "@/lib/format";
 import { totalMinutes } from "@/lib/schedule";
@@ -73,7 +74,7 @@ export default function StepsEditor({
                 <div className="flex overflow-hidden rounded-xl border border-line text-sm font-semibold">
                   {(["active", "passive"] as const).map((k) => (
                     <button
-                      key={k} type="button" onClick={() => update(i, { kind: k })}
+                      key={k} type="button" onClick={() => update(i, k === "active" ? { kind: k, background: false, until: null } : { kind: k })}
                       className={`px-3 py-2 ${s.kind === k ? "bg-ink text-white" : "bg-white text-muted"}`}
                     >
                       {k === "active" ? "✋ Hands-on" : "⏳ Hands-off"}
@@ -92,11 +93,12 @@ export default function StepsEditor({
                   <PinControls pin={s.pin ?? { daysBefore: 0, time: "12:00" }} onChange={(pin) => update(i, { pin })} />
                 </div>
               )}
+              {!tasksOnly && <BackgroundControls step={s} later={steps.slice(i + 1)} onChange={(patch) => update(i, patch)} />}
               {!tasksOnly && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                 {!s.pin && (
                   <label className="flex items-center gap-2">
-                    <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={false} onChange={() => update(i, { pin: { daysBefore: 0, time: "12:00", window: null } })} />
+                    <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={false} onChange={() => update(i, { pin: { daysBefore: 0, time: "12:00", window: null }, background: false, until: null })} />
                     <span>📌 Pin to a time</span>
                   </label>
                 )}

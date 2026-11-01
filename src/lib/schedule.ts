@@ -1,4 +1,4 @@
-import { HOLD_LABELS, WINDOW_HOURS, WINDOW_LABELS, type Meal, type MealDish, type PinWindow, type Step } from "./types";
+import { HOLD_LABELS, UNTIL_SERVE, WINDOW_HOURS, WINDOW_LABELS, type Meal, type MealDish, type PinWindow, type Step } from "./types";
 import { formatTime } from "./format";
 import { resolveTimeZone, wallTimeDaysBefore } from "./zoned";
 
@@ -70,44 +70,100 @@ export function pinPlacement(step: Step, target: Date, timeZone: string): Placed
 
 /**
  * Lay out an ordered list of steps that must be finished by `end`.
- * Pinned steps sit at their chosen times; unpinned steps before the first pin lead up to it,
- * steps between pins follow the earlier pin, and steps after the last pin work backward from `end`.
+ *
+ * - Steps pinned to an exact time are fixed and split the list into regions.
+ *   Before the first exact pin and after the last one, steps work backward (as late as possible);
+ *   between two exact pins, steps follow the earlier pin.
+ * - Flexible pins sit in their window and do not move other steps.
+ * - Background steps (hands-off, e.g. sous vide, marinating) don't block the steps after them:
+ *   each one ends exactly when its "until" step starts (by default the next regular step).
  */
 function layout(steps: Step[], end: Date, timeZone: string): Placed[] {
+  const n = steps.length;
   const out: (Placed | null)[] = steps.map((s) => pinPlacement(s, end, timeZone));
-  const pins = out.map((p, i) => (p ? i : -1)).filter((i) => i >= 0);
+  const dur = (i: number) => Math.max(0, steps[i].minutes) * MIN;
+  const isFlex = (i: number) => !!out[i]?.flexible;
+  const isExactPin = (i: number) => !!out[i] && !out[i]!.flexible;
+  const isBg = (i: number) => !steps[i].pin && !!steps[i].background;
 
-  const back = (from: number, to: number, finish: number) => {
-    let cursor = finish;
-    for (let i = to; i >= from; i--) {
-      const start = cursor - Math.max(0, steps[i].minutes) * MIN;
-      out[i] = { step: steps[i], start: new Date(start), end: new Date(cursor) };
-      cursor = start;
+  const anchorOf = (i: number): number | "end" => {
+    const u = steps[i].until;
+    if (u === UNTIL_SERVE) return "end";
+    if (u) {
+      const j = steps.findIndex((s, k) => k > i && s.id === u);
+      if (j >= 0) return j;
     }
+    for (let j = i + 1; j < n; j++) {
+      if (isFlex(j) || isBg(j)) continue;
+      return j;
+    }
+    return "end";
   };
-  const forward = (from: number, to: number, begin: number) => {
-    let cursor = begin;
-    for (let i = from; i <= to; i++) {
-      const fin = cursor + Math.max(0, steps[i].minutes) * MIN;
-      out[i] = { step: steps[i], start: new Date(cursor), end: new Date(fin) };
-      cursor = fin;
-    }
+  const anchorStart = (a: number | "end"): number | null => (a === "end" ? end.getTime() : out[a] ? out[a]!.start.getTime() : null);
+  const place = (i: number, start: number, finish: number) => {
+    out[i] = { step: steps[i], start: new Date(start), end: new Date(finish) };
   };
 
-  if (!pins.length) {
-    back(0, steps.length - 1, end.getTime());
-  } else {
-    const first = pins[0];
-    const last = pins[pins.length - 1];
-    if (first > 0) back(0, first - 1, out[first]!.start.getTime());
-    for (let k = 0; k < pins.length - 1; k++) {
-      const a = pins[k];
-      const b = pins[k + 1];
-      if (b - a > 1) forward(a + 1, b - 1, out[a]!.end.getTime());
+  // Regions between exact pins (flexible-pinned steps are already placed and skipped).
+  const pins = steps.map((_, i) => i).filter(isExactPin);
+  const bounds = [-1, ...pins, n];
+  const regions: { idx: number[]; mode: "back" | "forward"; limit: number }[] = [];
+  for (let r = 0; r + 1 < bounds.length; r++) {
+    const a = bounds[r];
+    const b = bounds[r + 1];
+    const idx: number[] = [];
+    for (let i = a + 1; i < b; i++) if (!out[i]) idx.push(i);
+    if (!idx.length) continue;
+    if (b === n) regions.push({ idx, mode: "back", limit: end.getTime() });
+    else if (a === -1) regions.push({ idx, mode: "back", limit: out[b]!.start.getTime() });
+    else regions.push({ idx, mode: "forward", limit: out[a]!.end.getTime() });
+  }
+
+  // Later regions first, so anchors further along are already placed.
+  for (const reg of regions.reverse()) {
+    if (reg.mode === "back") {
+      let minLater = reg.limit;
+      for (const i of [...reg.idx].reverse()) {
+        if (isBg(i)) {
+          const fin = anchorStart(anchorOf(i)) ?? reg.limit;
+          place(i, fin - dur(i), fin);
+          minLater = Math.min(minLater, fin - dur(i));
+        } else {
+          place(i, minLater - dur(i), minLater);
+          minLater -= dur(i);
+        }
+      }
+    } else {
+      let cursor = reg.limit;
+      let pending: { i: number; kick: number }[] = [];
+      for (const i of reg.idx) {
+        if (isBg(i)) {
+          pending.push({ i, kick: cursor });
+          continue;
+        }
+        const waiting = pending.filter((p) => anchorOf(p.i) === i);
+        const start = Math.max(cursor, ...waiting.map((p) => p.kick + dur(p.i)));
+        for (const p of waiting) place(p.i, start - dur(p.i), start);
+        pending = pending.filter((p) => !waiting.includes(p));
+        place(i, start, start + dur(i));
+        cursor = start + dur(i);
+      }
+      for (const p of pending) {
+        const fin = anchorStart(anchorOf(p.i)) ?? p.kick + dur(p.i);
+        place(p.i, fin - dur(p.i), fin);
+      }
     }
-    if (last < steps.length - 1) back(last + 1, steps.length - 1, end.getTime());
   }
   return out as Placed[];
+}
+
+/** How long a dish takes from first step to last, accounting for background steps (pins ignored). */
+export function dishSpanMinutes(steps: Step[]): number {
+  if (!steps.some((s) => s.background)) return steps.reduce((t, s) => t + (s.minutes || 0), 0);
+  const end = new Date(Date.UTC(2000, 0, 10));
+  const placed = layout(steps.map((s) => ({ ...s, pin: null })), end, "UTC");
+  const first = Math.min(...placed.map((p) => p.start.getTime()));
+  return Math.round((end.getTime() - first) / MIN);
 }
 
 /** Warn when consecutive steps of a dish end up out of order (usually because of a pin). */
@@ -117,6 +173,7 @@ function orderConflicts(dish: MealDish, placed: Placed[]): Conflict[] {
     const a = placed[i];
     const b = placed[i + 1];
     if (a.flexible || b.flexible) continue;
+    if (!a.step.pin && a.step.background) continue; // runs alongside what follows
     if (b.start.getTime() < a.end.getTime() - 1000) {
       out.push({
         kind: "order",
@@ -145,7 +202,7 @@ export function computeSchedule(meal: Meal): MealSchedule {
     if (dish.mode === "make_ahead" && !dish.isTasks) {
       const prep = dish.steps.filter((s) => s.phase !== "finish");
       const finish = dish.steps.filter((s) => s.phase === "finish");
-      const finishMin = finish.filter((s) => !s.pin).reduce((t, s) => t + s.minutes, 0);
+      const finishMin = dishSpanMinutes(finish.filter((s) => !s.pin));
       // Prep must be done readyAheadMin before serving, but never later than when finishing steps begin.
       const ahead = Math.max(dish.readyAheadMin, finishMin);
       const prepEnd = new Date(target.getTime() - ahead * MIN);
@@ -216,8 +273,9 @@ export function findConflicts(steps: ScheduledStep[]): Conflict[] {
   return conflicts;
 }
 
+/** Total time for a list of steps (background steps overlap, so this is the span, not the sum). */
 export function totalMinutes(steps: Step[]): number {
-  return steps.reduce((t, s) => t + (s.minutes || 0), 0);
+  return dishSpanMinutes(steps);
 }
 
 export function describePin(step: Step): string | null {

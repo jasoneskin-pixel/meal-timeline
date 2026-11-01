@@ -83,6 +83,7 @@ export default function Timeline({ meal, onStepClick }: { meal: Meal; onStepClic
                           </span>
                           {item.step.ovenTemp ? <span className="chip bg-orange-100 text-orange-900">🔥 {item.step.ovenTemp}°F</span> : null}
                           {item.step.phase === "finish" && item.dish.mode === "make_ahead" ? <span className="chip bg-sky-100 text-sky-900">Finishing</span> : null}
+                          {item.step.background && !item.step.pin ? <span className="chip bg-teal-100 text-teal-900">↔ Background</span> : null}
                           {item.flexible ? (
                             <span className="chip bg-violet-100 text-violet-900">🕐 Flexible</span>
                           ) : item.pinned ? (
