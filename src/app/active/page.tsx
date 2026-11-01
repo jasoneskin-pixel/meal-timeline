@@ -105,11 +105,11 @@ export default function ActivePage() {
         </div>
       )}
       {meals?.map((m) => (
-        <SwipeToDelete key={m.id} label="✅ Done" color="#2a9d8f" onDelete={() => finish(m)}>
+        <SwipeToDelete key={m.id} label="✅ Done" menuLabel="Done cooking" color="#2a9d8f" onDelete={() => finish(m)}>
           <ActiveCard meal={m} now={now} />
         </SwipeToDelete>
       ))}
-      {meals && meals.length > 0 && <p className="text-center text-xs text-muted">Tip: swipe left on a card when you&apos;re done cooking (on a computer, hover over it).</p>}
+      {meals && meals.length > 0 && <p className="text-center text-xs text-muted">Tip: swipe left on a card when you&apos;re done cooking (on a computer, use the ⋯ button).</p>}
       {toast}
     </div>
   );

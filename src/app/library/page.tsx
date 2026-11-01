@@ -92,7 +92,7 @@ export default function LibraryPage() {
         </div>
       )}
       {error && <p className="text-sm text-red-700">{error}</p>}
-      {dishes && dishes.length > 0 && tab === "dishes" && <p className="text-center text-xs text-muted">Tip: swipe left on an item to delete it (on a computer, hover over it).</p>}
+      {dishes && dishes.length > 0 && tab === "dishes" && <p className="text-center text-xs text-muted">Tip: swipe left on an item to delete it (on a computer, use the ⋯ button).</p>}
       {cookDish && <CookDishSheet dish={cookDish} onClose={() => setCookDish(null)} />}
       {toast}
     </div>
