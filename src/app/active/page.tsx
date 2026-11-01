@@ -11,8 +11,9 @@ import type { Meal } from "@/lib/types";
 
 function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
   const sched = computeSchedule(meal);
-  const current = sched.steps.filter((s) => s.start.getTime() <= now && now < (s.flexible ? s.flexible.until : s.end).getTime());
-  const next = sched.steps.find((s) => s.start.getTime() > now);
+  const done = new Set(meal.doneKeys ?? []);
+  const current = sched.steps.filter((s) => !done.has(s.key) && s.start.getTime() <= now && now < (s.flexible ? s.flexible.until : s.end).getTime());
+  const next = sched.steps.find((s) => !done.has(s.key) && s.start.getTime() > now);
   const serve = lastServe(meal).getTime();
   const colors = meal.dishes.map((d) => d.color);
   return (

@@ -28,6 +28,7 @@ create table if not exists meals (
   is_quick boolean not null default false,
   started_at timestamptz,
   finished_at timestamptz,
+  done_keys jsonb not null default '[]'::jsonb,
   notes text,
   dishes jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
@@ -50,6 +51,7 @@ create table if not exists scheduled_notifications (
   body text not null,
   url text,
   kind text,
+  step_key text,
   sent_at timestamptz
 );
 create index if not exists scheduled_notifications_due on scheduled_notifications (fire_at) where sent_at is null;

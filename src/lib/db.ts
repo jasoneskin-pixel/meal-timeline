@@ -46,6 +46,7 @@ export function mealFromRow(r: any): Meal {
     isQuick: !!r.is_quick,
     startedAt: r.started_at ?? null,
     finishedAt: r.finished_at ?? null,
+    doneKeys: Array.isArray(r.done_keys) ? r.done_keys : [],
     notes: r.notes,
     dishes: r.dishes ?? [],
     updatedAt: r.updated_at,

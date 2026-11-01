@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "./api";
@@ -78,16 +78,54 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   const now = useNow();
   const awake = useWakeLock();
   const sched = useMemo(() => computeSchedule(meal), [meal]);
-  const storeKey = `done:${meal.id}`;
-  const [done, setDone] = useState<Set<string>>(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(storeKey) || "[]")); } catch { return new Set(); }
-  });
+  // Checkmarks live in the database so every device shows the same progress.
+  const done = useMemo(() => new Set(meal.doneKeys ?? []), [meal.doneKeys]);
+  const [syncError, setSyncError] = useState("");
+  const pending = useRef(0);
+
+  async function saveDone(keys: string[], value: boolean) {
+    pending.current++;
+    try {
+      const r = await api<{ doneKeys: string[] }>(`/api/meals/${meal.id}/done`, { method: "POST", json: { keys, done: value } });
+      onMealChange?.({ ...meal, doneKeys: r.doneKeys });
+      setSyncError("");
+    } catch (e) {
+      setSyncError((e as Error).message);
+    } finally {
+      pending.current--;
+    }
+  }
+
   const toggle = (k: string) => {
+    const value = !done.has(k);
     const next = new Set(done);
-    if (next.has(k)) next.delete(k); else next.add(k);
-    setDone(next);
-    try { localStorage.setItem(storeKey, JSON.stringify([...next])); } catch {}
+    if (value) next.add(k); else next.delete(k);
+    onMealChange?.({ ...meal, doneKeys: [...next] }); // instant feedback
+    saveDone([k], value);
   };
+
+  // Pull changes made on other devices (checkmarks, running-behind shifts, edits).
+  useEffect(() => {
+    const refresh = () => {
+      if (pending.current > 0 || document.visibilityState !== "visible") return;
+      api<Meal>(`/api/meals/${meal.id}`).then((m) => { if (pending.current === 0) onMealChange?.(m); }).catch(() => {});
+    };
+    const t = setInterval(refresh, 15_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", refresh); };
+  }, [meal.id, onMealChange]);
+
+  // One-time move of checkmarks saved on this device by the older version of the app.
+  useEffect(() => {
+    const key = `done:${meal.id}`;
+    try {
+      const local: string[] = JSON.parse(localStorage.getItem(key) || "[]");
+      localStorage.removeItem(key);
+      const missing = local.filter((k) => !(meal.doneKeys ?? []).includes(k));
+      if (missing.length) setTimeout(() => saveDone(missing, true), 0);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meal.id]);
 
   const endOf = (s: ScheduledStep) => (s.flexible ? s.flexible.until : s.end).getTime();
   const current = sched.steps.filter((s) => s.start.getTime() <= now && now < endOf(s) && !done.has(s.key));
@@ -180,6 +218,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       </div>
       <DishLegend meal={meal} />
       <NotificationSetup compact />
+      {syncError && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Checkmarks didn&apos;t sync: {syncError}</p>}
 
       {overdue.length > 0 && (
         <section className="space-y-2">

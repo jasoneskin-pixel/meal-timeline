@@ -85,6 +85,8 @@ export interface Meal {
   startedAt?: string | null;
   /** When "Done cooking" was tapped. */
   finishedAt?: string | null;
+  /** Steps checked off in cook mode (shared across devices). */
+  doneKeys?: string[];
   notes?: string | null;
   dishes: MealDish[];
   updatedAt?: string;

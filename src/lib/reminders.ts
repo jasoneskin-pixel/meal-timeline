@@ -12,6 +12,7 @@ interface NotificationRow {
   body: string;
   url: string;
   kind: string;
+  step_key?: string;
 }
 
 export function buildNotifications(meal: Meal, now = new Date()): NotificationRow[] {
@@ -21,13 +22,17 @@ export function buildNotifications(meal: Meal, now = new Date()): NotificationRo
   const tz = meal.timezone;
   const url = `/meals/${meal.id}/cook`;
   const rows: NotificationRow[] = [];
+  const done = new Set(meal.doneKeys ?? []);
+  let stepKey: string | undefined;
   const add = (fire: Date, kind: string, title: string, body: string) => {
     if (fire.getTime() > now.getTime()) {
-      rows.push({ owner: OWNER, meal_id: meal.id, fire_at: fire.toISOString(), title, body, url, kind });
+      rows.push({ owner: OWNER, meal_id: meal.id, fire_at: fire.toISOString(), title, body, url, kind, ...(stepKey ? { step_key: stepKey } : {}) });
     }
   };
 
   for (const s of sched.steps) {
+    if (done.has(s.key)) continue; // already checked off
+    stepKey = s.key;
     const label = `${s.dish.emoji} ${s.step.title}`;
     const detail = `${s.dish.name} · ${formatDuration(s.step.minutes)}${s.step.ovenTemp ? ` · ${s.step.ovenTemp}°F` : ""}`;
     if (s.flexible) {
@@ -50,6 +55,7 @@ export function buildNotifications(meal: Meal, now = new Date()): NotificationRo
       add(s.end, "timer_end", `⏰ Done: ${label}`, `${s.dish.name}: ${s.step.title} timer is up.`);
     }
   }
+  stepKey = undefined;
   for (const item of sched.items) {
     if (item.type === "hold") {
       add(item.at, "hold", `${item.dish.emoji} ${item.dish.name} is ready`, `Move it to: ${HOLD_LABELS[item.dish.holdMethod].toLowerCase()}.`);
@@ -65,7 +71,11 @@ export async function syncMealReminders(meal: Meal): Promise<void> {
   if (del.error) throw del.error;
   const rows = buildNotifications(meal);
   if (rows.length) {
-    const ins = await client.from("scheduled_notifications").insert(rows);
+    let ins = await client.from("scheduled_notifications").insert(rows);
+    if (ins.error && /step_key/.test(ins.error.message)) {
+      // Database not updated yet: save reminders without step links.
+      ins = await client.from("scheduled_notifications").insert(rows.map((r) => { const copy = { ...r }; delete copy.step_key; return copy; }));
+    }
     if (ins.error) throw ins.error;
   }
 }
