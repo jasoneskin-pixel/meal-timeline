@@ -3,7 +3,7 @@ import DurationInput from "./DurationInput";
 import BackgroundControls from "./BackgroundControls";
 import { newId } from "@/lib/ids";
 import { formatDuration } from "@/lib/format";
-import { totalMinutes } from "@/lib/schedule";
+import { isLongBlockingStep, totalMinutes } from "@/lib/schedule";
 import { WINDOW_LABELS, type PinWindow, type Step, type StepPin } from "@/lib/types";
 
 export function blankStep(pinned = false): Step {
@@ -92,6 +92,12 @@ export default function StepsEditor({
                   )}
                   <PinControls pin={s.pin ?? { daysBefore: 0, time: "12:00" }} onChange={(pin) => update(i, { pin })} />
                 </div>
+              )}
+              {!tasksOnly && isLongBlockingStep(s) && (
+                <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+                  ⏳ This step is over 8 hours and every step after it waits for it to finish.
+                  {s.kind === "active" ? " If it runs on its own, switch it to Hands-off and turn on Runs in the background." : " If other steps happen meanwhile, turn on Runs in the background below."}
+                </p>
               )}
               {!tasksOnly && <BackgroundControls step={s} later={steps.slice(i + 1)} onChange={(patch) => update(i, patch)} />}
               {!tasksOnly && (

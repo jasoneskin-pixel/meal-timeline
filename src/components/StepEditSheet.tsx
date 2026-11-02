@@ -4,6 +4,7 @@ import { api } from "./api";
 import DurationInput from "./DurationInput";
 import { PinControls } from "./StepsEditor";
 import BackgroundControls from "./BackgroundControls";
+import { isLongBlockingStep } from "@/lib/schedule";
 import type { Meal, Step } from "@/lib/types";
 
 /** Edit one step of a meal from its timeline or cook mode. Changes apply to this meal; optionally to the Library dish too. */
@@ -102,6 +103,11 @@ export default function StepEditSheet({
               )}
               {!isTask && !draft.pin && <p className="text-xs text-muted">Unpinned steps are scheduled automatically around serving time.</p>}
             </div>
+            {!isTask && isLongBlockingStep(draft) && (
+              <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+                ⏳ Over 8 hours, and every step after it waits for it. If other steps happen meanwhile, make it Hands-off and turn on Runs in the background.
+              </p>
+            )}
             {!isTask && (
               <BackgroundControls
                 step={draft}

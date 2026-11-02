@@ -120,7 +120,7 @@ export default function Timeline({
         <div className="space-y-1.5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
           <p className="font-semibold">Heads up: {sched.conflicts.length} timing {sched.conflicts.length === 1 ? "conflict" : "conflicts"}</p>
           {sched.conflicts.map((c, i) => (
-            <p key={i}>{c.kind === "oven_temp" ? "🔥" : "✋"} {c.message}</p>
+            <p key={i}>{c.kind === "oven_temp" ? "🔥" : c.kind === "long_step" ? "⏳" : c.kind === "order" ? "↕️" : "✋"} {c.message}</p>
           ))}
         </div>
       )}

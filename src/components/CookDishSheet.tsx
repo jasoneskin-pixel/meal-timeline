@@ -27,14 +27,18 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
   const [mode, setMode] = useState<DishMode>("fresh");
   const [holdMethod, setHoldMethod] = useState<HoldMethod>("fridge");
   const [readyAheadMin, setReadyAheadMin] = useState(120);
+  const [byDate, setByDate] = useState(false);
+  const [readyDate, setReadyDate] = useState("");
+  const [readyTime, setReadyTime] = useState("");
   const hasFinish = dish.steps.some((s) => s.phase === "finish");
 
   const serveAt = fromLocalInputs(date, time);
+  const readyAt = mode === "make_ahead" && byDate ? fromLocalInputs(readyDate, readyTime) : null;
   const start = serveAt
     ? computeSchedule({
         id: "preview", name: dish.name, serveAt, deadlineMode: "all", timezone: "", reminderLeadMin: 5,
         remindersOn: false, inLibrary: false,
-        dishes: [{ id: "d", name: dish.name, emoji: dish.emoji, color: dish.color, steps: dish.steps, mode, holdMethod, readyAheadMin, serveAt: null }],
+        dishes: [{ id: "d", name: dish.name, emoji: dish.emoji, color: dish.color, steps: dish.steps, mode, holdMethod, readyAheadMin, readyAt, serveAt: null }],
       }).firstStart
     : null;
   const [now] = useState(() => Date.now());
@@ -47,7 +51,7 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
     try {
       const meal = await api<Meal>("/api/quick-cook", {
         method: "POST",
-        json: { dish, serveAt, mode, holdMethod, readyAheadMin, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        json: { dish, serveAt, mode, holdMethod, readyAheadMin, readyAt, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
       });
       router.push(`/meals/${meal.id}/cook`);
     } catch (e) {
@@ -92,9 +96,40 @@ export default function CookDishSheet({ dish, onClose }: { dish: DishLike; onClo
                   {Object.entries(HOLD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="label">Have it done this long before the ready-by time</label>
-                <DurationInput minutes={readyAheadMin} onChange={setReadyAheadMin} />
+              <div className="space-y-2">
+                <label className="label">When should it be prepared by?</label>
+                <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-line text-sm font-semibold">
+                  <button type="button" onClick={() => setByDate(false)} className={`py-2 ${!byDate ? "bg-ink text-white" : "bg-white text-muted"}`}>
+                    Time before ready-by
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!readyDate && serveAt) {
+                        const v = toLocalInputs(new Date(new Date(serveAt).getTime() - readyAheadMin * 60_000).toISOString());
+                        setReadyDate(v.date);
+                        setReadyTime(v.time);
+                      }
+                      setByDate(true);
+                    }}
+                    className={`py-2 ${byDate ? "bg-ink text-white" : "bg-white text-muted"}`}
+                  >
+                    A date &amp; time
+                  </button>
+                </div>
+                {byDate ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input type="date" className="field flex-1" value={readyDate} onChange={(e) => setReadyDate(e.target.value)} />
+                      <input type="time" className="field w-36" value={readyTime} onChange={(e) => setReadyTime(e.target.value)} />
+                    </div>
+                    {readyAt && serveAt && new Date(readyAt) > new Date(serveAt) && (
+                      <p className="text-sm text-red-700">That&apos;s after the ready-by time. Pick an earlier date or time.</p>
+                    )}
+                  </>
+                ) : (
+                  <DurationInput minutes={readyAheadMin} onChange={setReadyAheadMin} />
+                )}
               </div>
               {hasFinish && <p className="text-xs text-muted">Finishing steps (like reheating) still happen right before the ready-by time.</p>}
             </>

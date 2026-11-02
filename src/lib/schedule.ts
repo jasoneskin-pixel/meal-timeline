@@ -1,5 +1,5 @@
 import { HOLD_LABELS, UNTIL_SERVE, WINDOW_HOURS, WINDOW_LABELS, type Meal, type MealDish, type PinWindow, type Step, type StepPin } from "./types";
-import { formatTime } from "./format";
+import { formatDuration, formatTime } from "./format";
 import { calendarDaysBetween, resolveTimeZone, wallClock, wallTimeDaysBefore } from "./zoned";
 
 export interface ScheduledStep {
@@ -30,7 +30,7 @@ export interface ScheduledMarker {
 export type TimelineItem = ScheduledStep | ScheduledMarker;
 
 export interface Conflict {
-  kind: "active_overlap" | "oven_temp" | "order";
+  kind: "active_overlap" | "oven_temp" | "order" | "long_step";
   message: string;
   keys: string[];
 }
@@ -244,6 +244,16 @@ export function computeSchedule(meal: Meal): MealSchedule {
     (a, b) => timeOf(a) - timeOf(b) || order(a) - order(b) || a.dishIndex - b.dishIndex,
   );
 
+  for (const s of steps) {
+    if (isLongBlockingStep(s.step) && !s.dish.isTasks) {
+      extra.push({
+        kind: "long_step",
+        keys: [s.key],
+        message: `${s.dish.emoji} ${s.step.title || "A step"} is ${formatDuration(s.step.minutes)} and holds up every step after it. If other steps happen while it runs (like sous vide or marinating), turn on "Runs in the background".`,
+      });
+    }
+  }
+
   return {
     items,
     steps: [...steps].sort((a, b) => a.start.getTime() - b.start.getTime()),
@@ -286,6 +296,12 @@ export function findConflicts(steps: ScheduledStep[]): Conflict[] {
 }
 
 /** Total time for a list of steps (background steps overlap, so this is the span, not the sum). */
+/** Steps over 8 hours that block the steps after them are usually meant to run in the background. */
+export const LONG_STEP_MIN = 8 * 60;
+export function isLongBlockingStep(step: Step): boolean {
+  return step.minutes > LONG_STEP_MIN && !step.background && !step.pin;
+}
+
 export function totalMinutes(steps: Step[]): number {
   return dishSpanMinutes(steps);
 }
