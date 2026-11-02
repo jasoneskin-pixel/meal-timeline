@@ -10,7 +10,7 @@ export default function BottomNav() {
   const activeCount = useActiveCount(path, !onLogin);
   if (onLogin) return null;
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden print:hidden">
       <div className="mx-auto flex max-w-2xl md:max-w-3xl">
         {TABS.map((t) => {
           const active = t.match(path);

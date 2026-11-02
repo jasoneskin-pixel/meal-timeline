@@ -66,3 +66,10 @@ input, select, textarea {
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
 }
+
+/* Printing: clean white pages, colors kept, no app chrome. */
+@media print {
+  @page { margin: 12mm; }
+  html, body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

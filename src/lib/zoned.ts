@@ -28,3 +28,17 @@ export function wallTimeDaysBefore(base: Date, daysBefore: number, hour: number,
   t = guess - tzOffsetMs(new Date(t), timeZone); // second pass handles DST changes
   return new Date(t);
 }
+
+/** Local wall-clock hour and minute of `date` in `timeZone`. */
+export function wallClock(date: Date, timeZone: string): { h: number; m: number } {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", hour: "2-digit", minute: "2-digit" }).formatToParts(date);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { h: get("hour") % 24, m: get("minute") };
+}
+
+/** Whole calendar days from `earlier` to `later`, counted in `timeZone` (e.g. Wed to Thu = 1). */
+export function calendarDaysBetween(later: Date, earlier: Date, timeZone: string): number {
+  const [y1, m1, d1] = ymdIn(later, timeZone);
+  const [y0, m0, d0] = ymdIn(earlier, timeZone);
+  return Math.round((Date.UTC(y1, m1 - 1, d1) - Date.UTC(y0, m0 - 1, d0)) / 86_400_000);
+}

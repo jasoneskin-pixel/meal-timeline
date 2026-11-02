@@ -8,7 +8,7 @@ export default function TopBar() {
   const [spinning, setSpinning] = useState(false);
   if (path.startsWith("/login")) return null;
   return (
-    <header className="sticky top-0 z-30 border-b lg:hidden border-line bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+    <header className="sticky top-0 z-30 border-b lg:hidden print:hidden border-line bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-2 md:max-w-3xl md:px-6">
         <span className="text-sm font-bold text-muted">⏲️ Meal Timeline</span>
         <button

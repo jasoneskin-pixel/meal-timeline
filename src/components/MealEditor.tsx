@@ -9,7 +9,7 @@ import Timeline, { DishLegend } from "./Timeline";
 import { newId } from "@/lib/ids";
 import { pickUnusedColor } from "@/lib/palette";
 import { formatDuration, fromLocalInputs, toLocalInputs } from "@/lib/format";
-import { totalMinutes } from "@/lib/schedule";
+import { dishTarget, flexiblePinForDrop, totalMinutes, withStepPin } from "@/lib/schedule";
 import { HOLD_LABELS, type Dish, type HoldMethod, type Meal, type MealDish } from "@/lib/types";
 
 type Draft = Omit<Meal, "id"> & { id?: string };
@@ -381,7 +381,13 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
       {hasPreview && (
         <section className="space-y-3 lg:hidden">
           <h2 className="text-lg font-bold">Preview</h2>
-          <Timeline meal={meal as Meal} />
+          <Timeline
+                meal={meal as Meal}
+                onMoveFlexible={(st, at) => {
+                  const pin = flexiblePinForDrop(st.step, at, dishTarget(meal as Meal, st.dish), meal.timezone);
+                  setMeal((m) => withStepPin(m as Meal, st.dish.id, st.step.id, pin));
+                }}
+              />
         </section>
       )}
 
@@ -400,7 +406,13 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
           {hasPreview ? (
             <>
               <DishLegend meal={meal as Meal} />
-              <Timeline meal={meal as Meal} />
+              <Timeline
+                meal={meal as Meal}
+                onMoveFlexible={(st, at) => {
+                  const pin = flexiblePinForDrop(st.step, at, dishTarget(meal as Meal, st.dish), meal.timezone);
+                  setMeal((m) => withStepPin(m as Meal, st.dish.id, st.step.id, pin));
+                }}
+              />
             </>
           ) : (
             <div className="card text-sm text-muted">Set a serving date and time and add a dish. The timeline appears here and updates as you edit.</div>

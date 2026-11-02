@@ -7,7 +7,7 @@ import { useMeal } from "@/components/useMeal";
 import Timeline, { DishLegend } from "@/components/Timeline";
 import NotificationSetup from "@/components/NotificationSetup";
 import StepEditSheet from "@/components/StepEditSheet";
-import type { ScheduledStep } from "@/lib/schedule";
+import { dishTarget, flexiblePinForDrop, withStepPin, type ScheduledStep } from "@/lib/schedule";
 import { computeSchedule } from "@/lib/schedule";
 import { formatDateTime, fromLocalInputs } from "@/lib/format";
 import type { Meal } from "@/lib/types";
@@ -49,10 +49,20 @@ export default function MealPage() {
         <Link href={`/meals/${meal.id}/cook`} className="btn-primary">👩‍🍳 Cook mode</Link>
         <Link href={`/meals/${meal.id}/edit`} className="btn-ghost">✏️ Edit</Link>
       </div>
+      <Link href={`/meals/${meal.id}/print`} className="btn-ghost w-full">🖨️ Print timeline</Link>
       {meal.remindersOn && <NotificationSetup compact />}
       <DishLegend meal={meal} />
       <p className="text-xs text-muted">Tap any step to edit it.</p>
-      <Timeline meal={meal} onStepClick={setEditing} />
+      <Timeline
+        meal={meal}
+        onStepClick={setEditing}
+        onMoveFlexible={async (s, at) => {
+          const pin = flexiblePinForDrop(s.step, at, dishTarget(meal, s.dish), meal.timezone);
+          const updated = withStepPin(meal, s.dish.id, s.step.id, pin);
+          setMeal(updated);
+          setMeal(await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated }).catch(() => meal));
+        }}
+      />
       {editing && (
         <StepEditSheet meal={meal} dishId={editing.dish.id} step={editing.step} onSaved={setMeal} onClose={() => setEditing(null)} />
       )}

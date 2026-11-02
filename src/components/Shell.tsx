@@ -12,7 +12,7 @@ import BottomNav from "./BottomNav";
  */
 export default function Shell({ children }: { children: ReactNode }) {
   const path = usePathname();
-  const bare = path.startsWith("/login");
+  const bare = path.startsWith("/login") || path.endsWith("/print");
   return (
     <>
       {!bare && <TopBar />}

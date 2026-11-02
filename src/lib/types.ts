@@ -10,6 +10,8 @@ export interface StepPin {
   /** Exact local time "HH:MM". If absent, the step is flexible within `window`. */
   time?: string | null;
   window?: PinWindow | null;
+  /** Flexible steps only: where it sits in the list ("HH:MM" that day), set by dragging. Reminders still use the window. */
+  listAt?: string | null;
 }
 
 export const WINDOW_HOURS: Record<PinWindow, [number, number]> = {

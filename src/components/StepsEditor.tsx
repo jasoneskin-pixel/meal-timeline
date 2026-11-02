@@ -22,17 +22,17 @@ export function PinControls({ pin, onChange }: { pin: StepPin; onChange: (p: Ste
   const exact = !!pin.time;
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select className="field w-auto py-1.5" value={pin.daysBefore} onChange={(e) => onChange({ ...pin, daysBefore: parseInt(e.target.value) })}>
+      <select className="field w-auto py-1.5" value={pin.daysBefore} onChange={(e) => onChange({ ...pin, daysBefore: parseInt(e.target.value), listAt: null })}>
         {DAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <div className="flex overflow-hidden rounded-xl border border-line text-xs font-semibold">
-        <button type="button" onClick={() => onChange({ ...pin, time: pin.time || "12:00", window: null })} className={`px-2.5 py-2 ${exact ? "bg-ink text-white" : "bg-white text-muted"}`}>Exact time</button>
-        <button type="button" onClick={() => onChange({ ...pin, time: null, window: pin.window || "anytime" })} className={`px-2.5 py-2 ${!exact ? "bg-ink text-white" : "bg-white text-muted"}`}>Flexible</button>
+        <button type="button" onClick={() => onChange({ ...pin, time: pin.time || "12:00", window: null, listAt: null })} className={`px-2.5 py-2 ${exact ? "bg-ink text-white" : "bg-white text-muted"}`}>Exact time</button>
+        <button type="button" onClick={() => onChange({ ...pin, time: null, window: pin.window || "anytime", listAt: null })} className={`px-2.5 py-2 ${!exact ? "bg-ink text-white" : "bg-white text-muted"}`}>Flexible</button>
       </div>
       {exact ? (
         <input type="time" className="field w-32 py-1.5" value={pin.time ?? ""} onChange={(e) => onChange({ ...pin, time: e.target.value || "12:00" })} />
       ) : (
-        <select className="field w-auto py-1.5" value={pin.window ?? "anytime"} onChange={(e) => onChange({ ...pin, window: e.target.value as PinWindow })}>
+        <select className="field w-auto py-1.5" value={pin.window ?? "anytime"} onChange={(e) => onChange({ ...pin, window: e.target.value as PinWindow, listAt: null })}>
           {Object.entries(WINDOW_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       )}

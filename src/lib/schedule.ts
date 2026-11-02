@@ -1,6 +1,6 @@
-import { HOLD_LABELS, UNTIL_SERVE, WINDOW_HOURS, WINDOW_LABELS, type Meal, type MealDish, type PinWindow, type Step } from "./types";
+import { HOLD_LABELS, UNTIL_SERVE, WINDOW_HOURS, WINDOW_LABELS, type Meal, type MealDish, type PinWindow, type Step, type StepPin } from "./types";
 import { formatTime } from "./format";
-import { resolveTimeZone, wallTimeDaysBefore } from "./zoned";
+import { calendarDaysBetween, resolveTimeZone, wallClock, wallTimeDaysBefore } from "./zoned";
 
 export interface ScheduledStep {
   type: "step";
@@ -14,6 +14,8 @@ export interface ScheduledStep {
   pinned?: boolean;
   /** Flexible pin: can happen any time in the window, until `until`. */
   flexible?: { window: PinWindow; until: Date };
+  /** Where a dragged flexible step sits in the list (defaults to its start). */
+  sortAt?: Date;
 }
 
 export interface ScheduledMarker {
@@ -48,7 +50,7 @@ export function dishTarget(meal: Meal, dish: MealDish): Date {
   return new Date(iso);
 }
 
-type Placed = { step: Step; start: Date; end: Date; pinned?: boolean; flexible?: { window: PinWindow; until: Date } };
+type Placed = { step: Step; start: Date; end: Date; pinned?: boolean; flexible?: { window: PinWindow; until: Date }; sortAt?: Date };
 
 /** Where a pinned step starts, relative to the dish's serving time. */
 export function pinPlacement(step: Step, target: Date, timeZone: string): Placed | null {
@@ -65,7 +67,12 @@ export function pinPlacement(step: Step, target: Date, timeZone: string): Placed
   const [h0, h1] = WINDOW_HOURS[window];
   const start = wallTimeDaysBefore(target, days, h0, 0, timeZone);
   const windowEnd = wallTimeDaysBefore(target, days, h1, 0, timeZone);
-  return { step, start, end: new Date(start.getTime() + dur), pinned: true, flexible: { window, until: windowEnd } };
+  let sortAt: Date | undefined;
+  if (pin.listAt && /^\d{1,2}:\d{2}$/.test(pin.listAt)) {
+    const [lh, lm] = pin.listAt.split(":").map(Number);
+    sortAt = wallTimeDaysBefore(target, days, lh, lm, timeZone);
+  }
+  return { step, start, end: new Date(start.getTime() + dur), pinned: true, flexible: { window, until: windowEnd }, sortAt };
 }
 
 /**
@@ -78,9 +85,10 @@ export function pinPlacement(step: Step, target: Date, timeZone: string): Placed
  * - Background steps (hands-off, e.g. sous vide, marinating) don't block the steps after them:
  *   each one ends exactly when its "until" step starts (by default the next regular step).
  */
-function layout(steps: Step[], end: Date, timeZone: string): Placed[] {
+function layout(steps: Step[], end: Date, timeZone: string, pinBase: Date = end): Placed[] {
   const n = steps.length;
-  const out: (Placed | null)[] = steps.map((s) => pinPlacement(s, end, timeZone));
+  // Pins count days from the serving day (pinBase), even for make-ahead prep that ends earlier.
+  const out: (Placed | null)[] = steps.map((s) => pinPlacement(s, pinBase, timeZone));
   const dur = (i: number) => Math.max(0, steps[i].minutes) * MIN;
   const isFlex = (i: number) => !!out[i]?.flexible;
   const isExactPin = (i: number) => !!out[i] && !out[i]!.flexible;
@@ -210,7 +218,7 @@ export function computeSchedule(meal: Meal): MealSchedule {
       const prepEnd = new Date(
         Number.isFinite(readyAt) ? Math.min(readyAt, latest) : Math.min(target.getTime() - dish.readyAheadMin * MIN, latest),
       );
-      push(layout(prep, prepEnd, tz));
+      push(layout(prep, prepEnd, tz, target));
       if (prep.length) {
         markers.push({
           type: "hold",
@@ -230,7 +238,7 @@ export function computeSchedule(meal: Meal): MealSchedule {
     }
   });
 
-  const timeOf = (i: TimelineItem) => (i.type === "step" ? i.start : i.at).getTime();
+  const timeOf = (i: TimelineItem) => (i.type === "step" ? i.sortAt ?? i.start : i.at).getTime();
   const order = (i: TimelineItem) => (i.type === "hold" ? 0 : i.type === "step" ? 1 : 2);
   const items: TimelineItem[] = [...steps, ...markers].sort(
     (a, b) => timeOf(a) - timeOf(b) || order(a) - order(b) || a.dishIndex - b.dishIndex,
@@ -292,4 +300,26 @@ export function describePin(step: Step): string | null {
     return `${day}, ${formatTime(d)}`;
   }
   return `${day}, ${WINDOW_LABELS[p.window ?? "anytime"].toLowerCase()}`;
+}
+
+/**
+ * New pin for a flexible step dropped at `dropAt` in the timeline.
+ * "Anytime" stays anytime; morning/afternoon/evening follow where it was dropped. The day follows the drop too.
+ */
+export function flexiblePinForDrop(step: Step, dropAt: Date, servingDay: Date, timeZone: string): StepPin {
+  const tz = resolveTimeZone(timeZone);
+  const days = Math.max(0, calendarDaysBetween(servingDay, dropAt, tz));
+  const { h, m } = wallClock(dropAt, tz);
+  const current = step.pin?.window ?? "anytime";
+  const window: PinWindow = current === "anytime" ? "anytime" : h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const pad = (x: number) => String(x).padStart(2, "0");
+  return { daysBefore: days, time: null, window, listAt: `${pad(h)}:${pad(m)}` };
+}
+
+/** Copy of the meal with one step's pin replaced. */
+export function withStepPin(meal: Meal, dishId: string, stepId: string, pin: StepPin): Meal {
+  return {
+    ...meal,
+    dishes: meal.dishes.map((d) => (d.id === dishId ? { ...d, steps: d.steps.map((s) => (s.id === stepId ? { ...s, pin } : s)) } : d)),
+  };
 }

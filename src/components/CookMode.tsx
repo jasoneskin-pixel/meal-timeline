@@ -6,7 +6,7 @@ import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
 import StepEditSheet from "./StepEditSheet";
 import Timeline, { DishLegend } from "./Timeline";
-import { computeSchedule, type ScheduledStep } from "@/lib/schedule";
+import { computeSchedule, dishTarget, flexiblePinForDrop, withStepPin, type ScheduledStep } from "@/lib/schedule";
 import { formatCountdown, formatDay, formatDuration, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
 
@@ -66,6 +66,19 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   }
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<ScheduledStep | null>(null);
+  async function moveFlexible(s: ScheduledStep, at: Date) {
+    const pin = flexiblePinForDrop(s.step, at, dishTarget(meal, s.dish), meal.timezone);
+    const updated = withStepPin(meal, s.dish.id, s.step.id, pin);
+    onMealChange?.(updated);
+    pending.current++;
+    try {
+      onMealChange?.(await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated }));
+    } catch {
+      onMealChange?.(meal);
+    } finally {
+      pending.current--;
+    }
+  }
   // Opening cook mode marks the timeline as started so it shows in the Active tab.
   useEffect(() => {
     if (!meal.startedAt && !meal.finishedAt) {
@@ -241,11 +254,12 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       </section>
       <section className="space-y-3 lg:hidden">
         <button className="font-bold md:text-xl" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
-        {showAll && <Timeline meal={meal} onStepClick={setEditing} />}
+        {showAll && <Timeline meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} />}
       </section>
       {!meal.isQuick && (
         <Link href={`/meals/${meal.id}`} className="btn-ghost w-full">📋 Meal details</Link>
       )}
+      <Link href={`/meals/${meal.id}/print`} className="btn-ghost w-full">🖨️ Print timeline</Link>
       <button className="btn-ghost w-full" onClick={finish}>✅ Done cooking</button>
     </div>
 
@@ -259,7 +273,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
         <div className="space-y-3">
           <h2 className="text-xl font-bold">Full timeline</h2>
-          <Timeline meal={meal} onStepClick={setEditing} />
+          <Timeline meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} />
         </div>
       </aside>
     </div>

@@ -10,7 +10,7 @@ export default function Sidebar() {
   const activeCount = useActiveCount(path, true);
   const [spinning, setSpinning] = useState(false);
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-white/70 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-white/70 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] backdrop-blur lg:flex print:hidden">
       <Link href="/" className="mb-6 flex items-center gap-2 px-3 text-lg font-bold">
         <span className="text-2xl">⏲️</span> Meal Timeline
       </Link>

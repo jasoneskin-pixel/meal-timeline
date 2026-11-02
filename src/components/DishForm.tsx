@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EmojiColorPicker from "./EmojiColorPicker";
 import StepsEditor, { blankStep } from "./StepsEditor";
@@ -51,9 +52,12 @@ export default function DishForm({ initial }: { initial?: Dish }) {
   return (
     <div className="space-y-5">
       {dish.id && (
-        <button className="btn-primary w-full py-3" disabled={!canCook} onClick={() => setCooking(true)}>
-          👩‍🍳 Cook this dish
-        </button>
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <button className="btn-primary py-3" disabled={!canCook} onClick={() => setCooking(true)}>
+            👩‍🍳 Cook this dish
+          </button>
+          <Link href={`/dishes/${dish.id}/print`} className="btn-ghost">🖨️ Print</Link>
+        </div>
       )}
       <div className="card space-y-4">
         <div>
