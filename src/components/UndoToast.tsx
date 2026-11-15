@@ -9,7 +9,7 @@ interface Pending {
 }
 
 /** "Deleted X · Undo" bar shown for a few seconds after a delete. */
-export function useUndoToast() {
+export function useUndoToast({ raised = false }: { raised?: boolean } = {}) {
   const [pending, setPending] = useState<Pending | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -22,7 +22,7 @@ export function useUndoToast() {
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const toast = pending ? (
-    <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4">
+    <div className={`fixed inset-x-0 z-40 flex justify-center px-4 lg:pl-64 ${raised ? "bottom-40 lg:bottom-24" : "bottom-24 lg:bottom-6"}`}>
       <div className="flex w-full max-w-md items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-lg">
         <span className="flex-1 truncate text-sm">{pending.message ?? `Deleted ${pending.label}`}</span>
         <button

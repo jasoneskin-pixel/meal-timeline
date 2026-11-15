@@ -6,6 +6,7 @@ import DurationInput from "./DurationInput";
 import EmojiColorPicker from "./EmojiColorPicker";
 import StepsEditor, { blankStep } from "./StepsEditor";
 import Timeline, { DishLegend } from "./Timeline";
+import { useUndoToast } from "./UndoToast";
 import { newId } from "@/lib/ids";
 import { pickUnusedColor } from "@/lib/palette";
 import { formatDuration, fromLocalInputs, toLocalInputs } from "@/lib/format";
@@ -262,6 +263,22 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
     set({ dishes: [...meal.dishes, d] });
   }
 
+  const { toast: undoToast, show: showUndo } = useUndoToast({ raised: true });
+  function removeDish(d: MealDish, index: number) {
+    setMeal((m) => ({ ...m, dishes: m.dishes.filter((x) => x.id !== d.id) }));
+    showUndo({
+      label: d.name,
+      message: `Removed ${d.emoji} ${d.isTasks ? "all Other tasks" : d.name || "dish"} from this meal`,
+      undo: () =>
+        setMeal((m) => {
+          if (m.dishes.some((x) => x.id === d.id)) return m;
+          const dishes = [...m.dishes];
+          dishes.splice(Math.min(index, dishes.length), 0, d);
+          return { ...m, dishes };
+        }),
+    });
+  }
+
   function moveDish(i: number, dir: -1 | 1) {
     const j = i + dir;
     if (j < 0 || j >= meal.dishes.length) return;
@@ -322,7 +339,29 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
 
       <section className="space-y-3">
         <h2 className="text-lg font-bold">Dishes</h2>
-        {meal.dishes.length > 0 && <DishLegend meal={meal as Meal} />}
+        {meal.dishes.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {meal.dishes.map((d, i) => (
+              <span
+                key={d.id}
+                className="chip border py-0.5 pl-2 pr-0.5 text-sm"
+                style={{ backgroundColor: `${d.color}18`, borderColor: `${d.color}55`, color: "var(--ink)" }}
+              >
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                {d.emoji} {d.name || "New dish"}
+                <button
+                  type="button"
+                  aria-label={`Remove ${d.name || "dish"} from this meal`}
+                  title="Remove from this meal"
+                  onClick={() => removeDish(d, i)}
+                  className="ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-base leading-none text-muted hover:bg-white hover:text-red-700"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         {meal.dishes.map((d, i) => d.isTasks ? null : (
           <MealDishCard
             key={d.id}
@@ -330,7 +369,7 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
             individual={meal.deadlineMode === "individual"}
             mealServeAt={meal.serveAt}
             onChange={(nd) => set({ dishes: meal.dishes.map((x) => (x.id === nd.id ? nd : x)) })}
-            onRemove={() => set({ dishes: meal.dishes.filter((x) => x.id !== d.id) })}
+            onRemove={() => removeDish(d, i)}
             onMove={(dir) => moveDish(i, dir)}
           />
         ))}
@@ -420,6 +459,7 @@ export default function MealEditor({ initial }: { initial?: Meal }) {
         </div>
       </aside>
 
+      {undoToast}
       {picker && <LibraryPicker onClose={() => setPicker(false)} onPick={(d) => { addDish(d); setPicker(false); }} />}
     </div>
   );
