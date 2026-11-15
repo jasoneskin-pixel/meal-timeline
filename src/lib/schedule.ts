@@ -84,14 +84,18 @@ export function pinPlacement(step: Step, target: Date, timeZone: string): Placed
  * - Flexible pins sit in their window and do not move other steps.
  * - Background steps (hands-off, e.g. sous vide, marinating) don't block the steps after them:
  *   each one ends exactly when its "until" step starts (by default the next regular step).
+ * - Stretch steps (e.g. "soak overnight") last at least their duration and stretch to fill the gap:
+ *   they start when the steps before them are done (or at their own pin) and end when the next step must start.
  */
 function layout(steps: Step[], end: Date, timeZone: string, pinBase: Date = end): Placed[] {
   const n = steps.length;
   // Pins count days from the serving day (pinBase), even for make-ahead prep that ends earlier.
   const out: (Placed | null)[] = steps.map((s) => pinPlacement(s, pinBase, timeZone));
   const dur = (i: number) => Math.max(0, steps[i].minutes) * MIN;
-  const isFlex = (i: number) => !!out[i]?.flexible;
-  const isExactPin = (i: number) => !!out[i] && !out[i]!.flexible;
+  const isStretch = (i: number) => !!steps[i].stretch && !steps[i].background;
+  const isFlex = (i: number) => !!out[i]?.flexible && !isStretch(i);
+  // Exact pins, plus pinned stretch steps (their start anchors the steps around them even if flexible).
+  const isAnchorPin = (i: number) => !!out[i] && (!out[i]!.flexible || isStretch(i));
   const isBg = (i: number) => !steps[i].pin && !!steps[i].background;
 
   const anchorOf = (i: number): number | "end" => {
@@ -112,54 +116,88 @@ function layout(steps: Step[], end: Date, timeZone: string, pinBase: Date = end)
     out[i] = { step: steps[i], start: new Date(start), end: new Date(finish) };
   };
 
-  // Regions between exact pins (flexible-pinned steps are already placed and skipped).
-  const pins = steps.map((_, i) => i).filter(isExactPin);
+  /** Work backward so the steps finish by `limit`; returns the earliest start. */
+  const backPass = (idx: number[], limit: number): number => {
+    let minLater = limit;
+    for (const i of [...idx].reverse()) {
+      if (isBg(i)) {
+        const fin = anchorStart(anchorOf(i)) ?? limit;
+        place(i, fin - dur(i), fin);
+        minLater = Math.min(minLater, fin - dur(i));
+      } else {
+        place(i, minLater - dur(i), minLater);
+        minLater -= dur(i);
+      }
+    }
+    return minLater;
+  };
+  /** Work forward from `begin`; returns when the last step finishes. */
+  const forwardPass = (idx: number[], begin: number): number => {
+    let cursor = begin;
+    let pending: { i: number; kick: number }[] = [];
+    for (const i of idx) {
+      if (isBg(i)) {
+        pending.push({ i, kick: cursor });
+        continue;
+      }
+      const waiting = pending.filter((p) => anchorOf(p.i) === i);
+      const start = Math.max(cursor, ...waiting.map((p) => p.kick + dur(p.i)));
+      for (const p of waiting) place(p.i, start - dur(p.i), start);
+      pending = pending.filter((p) => !waiting.includes(p));
+      place(i, start, start + dur(i));
+      cursor = start + dur(i);
+    }
+    for (const p of pending) {
+      const fin = anchorStart(anchorOf(p.i)) ?? p.kick + dur(p.i);
+      place(p.i, fin - dur(p.i), fin);
+    }
+    return cursor;
+  };
+
+  // Regions between anchor pins (flexible-pinned steps are already placed and skipped).
+  const pins = steps.map((_, i) => i).filter(isAnchorPin);
   const bounds = [-1, ...pins, n];
-  const regions: { idx: number[]; mode: "back" | "forward"; limit: number }[] = [];
+  type Region = { idx: number[]; mode: "back" | "forward"; begin: number | null; limit: number; leftPin: number | null };
+  const regions: Region[] = [];
   for (let r = 0; r + 1 < bounds.length; r++) {
     const a = bounds[r];
     const b = bounds[r + 1];
     const idx: number[] = [];
     for (let i = a + 1; i < b; i++) if (!out[i]) idx.push(i);
-    if (!idx.length) continue;
-    if (b === n) regions.push({ idx, mode: "back", limit: end.getTime() });
-    else if (a === -1) regions.push({ idx, mode: "back", limit: out[b]!.start.getTime() });
-    else regions.push({ idx, mode: "forward", limit: out[a]!.end.getTime() });
+    const leftPin = a === -1 ? null : a;
+    const limit = b === n ? end.getTime() : out[b]!.start.getTime();
+    // After a stretch pin, steps work backward from the next anchor (the stretch fills the gap).
+    const mode = b === n || a === -1 || isStretch(a) ? "back" : "forward";
+    regions.push({ idx, mode, begin: leftPin === null ? null : out[leftPin]!.end.getTime(), limit, leftPin });
   }
 
   // Later regions first, so anchors further along are already placed.
-  for (const reg of regions.reverse()) {
-    if (reg.mode === "back") {
-      let minLater = reg.limit;
-      for (const i of [...reg.idx].reverse()) {
-        if (isBg(i)) {
-          const fin = anchorStart(anchorOf(i)) ?? reg.limit;
-          place(i, fin - dur(i), fin);
-          minLater = Math.min(minLater, fin - dur(i));
-        } else {
-          place(i, minLater - dur(i), minLater);
-          minLater -= dur(i);
-        }
+  for (const reg of [...regions].reverse()) {
+    const k = reg.idx.findIndex(isStretch);
+    if (k >= 0) {
+      // An unpinned stretch step: steps after it work backward; it fills the gap back to the steps before it.
+      const si = reg.idx[k];
+      const left = reg.idx.slice(0, k);
+      const right = reg.idx.slice(k + 1);
+      const sEnd = right.length ? backPass(right, reg.limit) : reg.limit;
+      if (reg.begin !== null && !(reg.leftPin !== null && isStretch(reg.leftPin))) {
+        const sStart = forwardPass(left, reg.begin);
+        place(si, Math.min(sStart, sEnd), sEnd);
+      } else {
+        place(si, sEnd - dur(si), sEnd);
+        backPass(left, sEnd - dur(si));
       }
+    } else if (reg.mode === "back") {
+      backPass(reg.idx, reg.limit);
     } else {
-      let cursor = reg.limit;
-      let pending: { i: number; kick: number }[] = [];
-      for (const i of reg.idx) {
-        if (isBg(i)) {
-          pending.push({ i, kick: cursor });
-          continue;
-        }
-        const waiting = pending.filter((p) => anchorOf(p.i) === i);
-        const start = Math.max(cursor, ...waiting.map((p) => p.kick + dur(p.i)));
-        for (const p of waiting) place(p.i, start - dur(p.i), start);
-        pending = pending.filter((p) => !waiting.includes(p));
-        place(i, start, start + dur(i));
-        cursor = start + dur(i);
-      }
-      for (const p of pending) {
-        const fin = anchorStart(anchorOf(p.i)) ?? p.kick + dur(p.i);
-        place(p.i, fin - dur(p.i), fin);
-      }
+      forwardPass(reg.idx, reg.begin!);
+    }
+    // A pinned stretch step on the left ends when this region's first step starts.
+    if (reg.leftPin !== null && isStretch(reg.leftPin)) {
+      const starts = reg.idx.map((i) => out[i]!.start.getTime());
+      const fin = starts.length ? Math.min(...starts) : reg.limit;
+      const sp = out[reg.leftPin]!;
+      out[reg.leftPin] = { ...sp, end: new Date(Math.max(sp.start.getTime(), fin)), flexible: undefined };
     }
   }
   return out as Placed[];
@@ -245,6 +283,13 @@ export function computeSchedule(meal: Meal): MealSchedule {
   );
 
   for (const s of steps) {
+    if (s.step.stretch && !s.step.background && s.end.getTime() - s.start.getTime() < s.step.minutes * MIN - 1000) {
+      extra.push({
+        kind: "order",
+        keys: [s.key],
+        message: `${s.dish.emoji} ${s.step.title || "A step"} only gets ${formatDuration(Math.max(0, Math.round((s.end.getTime() - s.start.getTime()) / MIN)))}, but needs at least ${formatDuration(s.step.minutes)}. Start it earlier.`,
+      });
+    }
     if (isLongBlockingStep(s.step) && !s.dish.isTasks) {
       extra.push({
         kind: "long_step",
@@ -299,7 +344,12 @@ export function findConflicts(steps: ScheduledStep[]): Conflict[] {
 /** Steps over 8 hours that block the steps after them are usually meant to run in the background. */
 export const LONG_STEP_MIN = 8 * 60;
 export function isLongBlockingStep(step: Step): boolean {
-  return step.minutes > LONG_STEP_MIN && !step.background && !step.pin;
+  return step.minutes > LONG_STEP_MIN && !step.background && !step.stretch && !step.pin;
+}
+
+/** Actual length of a scheduled step in minutes (stretch steps can run longer than their minimum). */
+export function scheduledMinutes(s: ScheduledStep): number {
+  return s.flexible ? s.step.minutes : Math.round((s.end.getTime() - s.start.getTime()) / MIN);
 }
 
 export function totalMinutes(steps: Step[]): number {

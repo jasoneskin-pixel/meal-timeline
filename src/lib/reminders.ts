@@ -52,7 +52,12 @@ export function buildNotifications(meal: Meal, now = new Date()): NotificationRo
       s.step.minutes > 0 ? `Starts at ${formatTime(s.start, tz)}. ${detail}` : `At ${formatTime(s.start, tz)}. ${s.dish.name}`,
     );
     if (s.step.kind === "passive" && s.step.minutes > 0) {
-      add(s.end, "timer_end", `⏰ Done: ${label}`, `${s.dish.name}: ${s.step.title} timer is up.`);
+      add(
+        s.end,
+        "timer_end",
+        `⏰ Done: ${label}`,
+        s.step.stretch ? `${s.dish.name}: time for the next step.` : `${s.dish.name}: ${s.step.title} timer is up.`,
+      );
     }
   }
   stepKey = undefined;

@@ -6,7 +6,7 @@ import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
 import StepEditSheet from "./StepEditSheet";
 import Timeline, { DishLegend } from "./Timeline";
-import { computeSchedule, dishTarget, flexiblePinForDrop, withStepPin, type ScheduledStep } from "@/lib/schedule";
+import { computeSchedule, dishTarget, flexiblePinForDrop, scheduledMinutes, withStepPin, type ScheduledStep } from "@/lib/schedule";
 import { formatCountdown, formatDay, formatDuration, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
 
@@ -188,7 +188,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
             {mode === "next" && (
               <p className="mt-1 text-sm font-semibold md:text-lg">
                 {s.flexible ? "Window opens" : s.step.minutes > 0 ? "Starts" : "Happens"} in {formatCountdown(s.start.getTime() - now)}
-                {s.step.minutes > 0 ? ` · ${formatDuration(s.step.minutes)}` : ""}
+                {scheduledMinutes(s) > 0 ? ` · ${formatDuration(scheduledMinutes(s))}` : ""}
               </p>
             )}
             {mode === "late" && <p className="mt-1 text-sm font-semibold text-red-700">Should be done. Tap the circle when finished.</p>}

@@ -82,7 +82,7 @@ export default function StepEditSheet({
               <DurationInput minutes={draft.minutes} onChange={(minutes) => set({ minutes })} />
               <div className="flex overflow-hidden rounded-xl border border-line text-sm font-semibold">
                 {(["active", "passive"] as const).map((k) => (
-                  <button key={k} type="button" onClick={() => set(k === "active" ? { kind: k, background: false, until: null } : { kind: k })} className={`px-3 py-2 ${draft.kind === k ? "bg-ink text-white" : "bg-white text-muted"}`}>
+                  <button key={k} type="button" onClick={() => set(k === "active" ? { kind: k, background: false, until: null, stretch: false } : { kind: k })} className={`px-3 py-2 ${draft.kind === k ? "bg-ink text-white" : "bg-white text-muted"}`}>
                     {k === "active" ? "✋ Hands-on" : "⏳ Hands-off"}
                   </button>
                 ))}

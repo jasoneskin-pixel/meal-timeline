@@ -40,6 +40,8 @@ export interface Step {
   pin?: StepPin | null;
   /** Hands-off step that runs alongside the following steps instead of blocking them. */
   background?: boolean;
+  /** Hands-off step that lasts at least `minutes` and stretches to fill the gap (e.g. "soak overnight"). */
+  stretch?: boolean;
   /** For background steps: the id of the later step it runs until, UNTIL_SERVE, or empty for "the next regular step". */
   until?: string | null;
 }

@@ -74,7 +74,7 @@ export default function StepsEditor({
                 <div className="flex overflow-hidden rounded-xl border border-line text-sm font-semibold">
                   {(["active", "passive"] as const).map((k) => (
                     <button
-                      key={k} type="button" onClick={() => update(i, k === "active" ? { kind: k, background: false, until: null } : { kind: k })}
+                      key={k} type="button" onClick={() => update(i, k === "active" ? { kind: k, background: false, until: null, stretch: false } : { kind: k })}
                       className={`px-3 py-2 ${s.kind === k ? "bg-ink text-white" : "bg-white text-muted"}`}
                     >
                       {k === "active" ? "✋ Hands-on" : "⏳ Hands-off"}

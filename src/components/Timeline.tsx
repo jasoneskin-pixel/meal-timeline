@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { computeSchedule, type ScheduledStep, type TimelineItem } from "@/lib/schedule";
+import { computeSchedule, scheduledMinutes, type ScheduledStep, type TimelineItem } from "@/lib/schedule";
 import { dayKey, formatDay, formatDuration, formatTime } from "@/lib/format";
 import { HOLD_LABELS, WINDOW_LABELS, type Meal } from "@/lib/types";
 
@@ -163,7 +163,7 @@ export default function Timeline({
                         <p className="font-semibold leading-6">{item.step.title || "Untitled step"}</p>
                         <p className="text-sm text-muted">
                           {item.dish.name}
-                          {item.step.minutes > 0 && <> · {formatDuration(item.step.minutes)}{!item.flexible && <> · until {formatTime(item.end)}</>}</>}
+                          {scheduledMinutes(item) > 0 && <> · {formatDuration(scheduledMinutes(item))}{!item.flexible && <> · until {formatTime(item.end)}</>}</>}
                           {item.flexible && <> · anytime before {formatTime(item.flexible.until)}</>}
                         </p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -173,6 +173,9 @@ export default function Timeline({
                           {item.step.ovenTemp ? <span className="chip bg-orange-100 text-orange-900">🔥 {item.step.ovenTemp}°F</span> : null}
                           {item.step.phase === "finish" && item.dish.mode === "make_ahead" ? <span className="chip bg-sky-100 text-sky-900">Finishing</span> : null}
                           {item.step.background && !item.step.pin ? <span className="chip bg-teal-100 text-teal-900">↔ Background</span> : null}
+                          {item.step.stretch && !item.step.background ? (
+                            <span className="chip bg-indigo-100 text-indigo-900">⇔ Stretches (min {formatDuration(item.step.minutes)})</span>
+                          ) : null}
                           {item.flexible ? (
                             <span className="chip bg-violet-100 text-violet-900">🕐 Flexible</span>
                           ) : item.pinned ? (

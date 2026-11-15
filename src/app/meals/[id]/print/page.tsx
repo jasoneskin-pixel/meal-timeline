@@ -1,7 +1,7 @@
 "use client";
 import PrintToolbar from "@/components/PrintToolbar";
 import { useMeal } from "@/components/useMeal";
-import { computeSchedule, type TimelineItem } from "@/lib/schedule";
+import { computeSchedule, scheduledMinutes, type TimelineItem } from "@/lib/schedule";
 import { formatDateTime, formatDuration, formatTime } from "@/lib/format";
 import { HOLD_LABELS, WINDOW_LABELS } from "@/lib/types";
 
@@ -78,6 +78,7 @@ export default function PrintMealPage() {
                       s.kind === "active" ? "hands-on" : "hands-off",
                       s.ovenTemp ? `${s.ovenTemp}°F` : "",
                       s.background && !s.pin ? "background" : "",
+                      s.stretch && !s.background ? `stretches (min ${formatDuration(s.minutes)})` : "",
                       item.flexible ? `anytime before ${formatTime(item.flexible.until)}` : "",
                     ].filter(Boolean);
                     return (
@@ -100,8 +101,8 @@ export default function PrintMealPage() {
                           </div>
                         </td>
                         <td className="w-28 py-2 text-right align-top text-sm tabular-nums">
-                          {s.minutes > 0 ? formatDuration(s.minutes) : ""}
-                          {s.minutes > 0 && !item.flexible && <div className="text-xs text-muted">until {formatTime(item.end)}</div>}
+                          {scheduledMinutes(item) > 0 ? formatDuration(scheduledMinutes(item)) : ""}
+                          {scheduledMinutes(item) > 0 && !item.flexible && <div className="text-xs text-muted">until {formatTime(item.end)}</div>}
                         </td>
                       </tr>
                     );

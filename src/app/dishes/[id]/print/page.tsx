@@ -64,7 +64,7 @@ export default function PrintDishPage() {
                   <td className="py-2 align-top">
                     <div className="font-semibold">{s.title || "Untitled step"}</div>
                     <div className="text-xs text-muted">
-                      {[s.kind === "active" ? "hands-on" : "hands-off", s.ovenTemp ? `${s.ovenTemp}°F` : "", s.background && !s.pin ? "runs in background" : "", s.phase === "finish" ? "finishing step" : ""]
+                      {[s.kind === "active" ? "hands-on" : "hands-off", s.ovenTemp ? `${s.ovenTemp}°F` : "", s.background && !s.pin ? "runs in background" : "", s.stretch && !s.background ? "stretches to fill the gap (minimum)" : "", s.phase === "finish" ? "finishing step" : ""]
                         .filter(Boolean)
                         .join(" · ")}
                     </div>
