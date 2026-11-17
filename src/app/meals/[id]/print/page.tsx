@@ -1,5 +1,7 @@
 "use client";
 import PrintToolbar from "@/components/PrintToolbar";
+import SimpleTimeline from "@/components/SimpleTimeline";
+import { TimelineModeSwitch, useTimelineMode } from "@/components/TimelineView";
 import { useMeal } from "@/components/useMeal";
 import { computeSchedule, scheduledMinutes, type TimelineItem } from "@/lib/schedule";
 import { formatDateTime, formatDuration, formatTime } from "@/lib/format";
@@ -11,6 +13,7 @@ const timeOf = (i: TimelineItem) => (i.type === "step" ? i.sortAt ?? i.start : i
 /** Kitchen-friendly printout of a meal's (or one-off cook's) timeline. */
 export default function PrintMealPage() {
   const { meal, error } = useMeal();
+  const [mode, setMode] = useTimelineMode();
   if (error) return <p className="text-red-700">{error}</p>;
   const sched = meal ? computeSchedule(meal) : null;
   const done = new Set(meal?.doneKeys ?? []);
@@ -26,6 +29,10 @@ export default function PrintMealPage() {
   return (
     <div className="print-sheet mx-auto max-w-3xl">
       <PrintToolbar ready={!!meal} />
+      <div className="mb-4 flex items-center gap-3 print:hidden">
+        <span className="text-sm text-muted">Layout:</span>
+        <TimelineModeSwitch mode={mode} onChange={setMode} />
+      </div>
       {!meal || !sched ? (
         <p className="text-muted">Loading...</p>
       ) : (
@@ -53,7 +60,8 @@ export default function PrintMealPage() {
             </div>
           )}
 
-          {days.map((day) => (
+          {mode === "simple" && <SimpleTimeline meal={meal} done={done} printable />}
+          {mode === "detailed" && days.map((day) => (
             <section key={day.label} className="break-inside-auto">
               <h2 className="mb-2 border-b border-line pb-1 text-lg font-bold uppercase tracking-wide">{day.label}</h2>
               <table className="w-full border-collapse text-[15px]">

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/api";
 import { useMeal } from "@/components/useMeal";
-import Timeline, { DishLegend } from "@/components/Timeline";
+import { DishLegend } from "@/components/Timeline";
+import TimelineView from "@/components/TimelineView";
+import { useDone } from "@/components/useDone";
 import NotificationSetup from "@/components/NotificationSetup";
 import StepEditSheet from "@/components/StepEditSheet";
 import { dishTarget, flexiblePinForDrop, withStepPin, type ScheduledStep } from "@/lib/schedule";
@@ -16,6 +18,7 @@ export default function MealPage() {
   const router = useRouter();
   const { meal, error, setMeal } = useMeal();
   const [editing, setEditing] = useState<ScheduledStep | null>(null);
+  const { done, toggle, error: doneError } = useDone(meal, setMeal);
   const [dupOpen, setDupOpen] = useState(false);
   const [dupDate, setDupDate] = useState("");
   const [dupTime, setDupTime] = useState("");
@@ -52,9 +55,12 @@ export default function MealPage() {
       <Link href={`/meals/${meal.id}/print`} className="btn-ghost w-full">🖨️ Print timeline</Link>
       {meal.remindersOn && <NotificationSetup compact />}
       <DishLegend meal={meal} />
-      <p className="text-xs text-muted">Tap any step to edit it.</p>
-      <Timeline
+      <p className="text-xs text-muted">Tap a circle to check a step off. In Detailed view, tap a step to edit it.</p>
+      {doneError && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Checkmark didn&apos;t sync: {doneError}</p>}
+      <TimelineView
         meal={meal}
+        done={done}
+        onToggleDone={toggle}
         onStepClick={setEditing}
         onMoveFlexible={async (s, at) => {
           const pin = flexiblePinForDrop(s.step, at, dishTarget(meal, s.dish), meal.timezone);

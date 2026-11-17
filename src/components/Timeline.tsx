@@ -46,13 +46,36 @@ export function DishLegend({ meal }: { meal: Meal }) {
   );
 }
 
+/** Round checkbox used on timeline steps (stops the tap from opening the step editor). */
+export function DoneBox({ checked, color, onToggle, label }: { checked: boolean; color: string; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={checked ? `Mark "${label}" not done` : `Mark "${label}" done`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold text-white transition"
+      style={{ borderColor: color, backgroundColor: checked ? color : "white" }}
+    >
+      {checked ? "✓" : ""}
+    </button>
+  );
+}
+
 export default function Timeline({
-  meal, onStepClick, onMoveFlexible,
+  meal, onStepClick, onMoveFlexible, done, onToggleDone,
 }: {
   meal: Meal;
   onStepClick?: (s: ScheduledStep) => void;
   /** Enables dragging flexible steps; called with the time of the spot they were dropped on. */
   onMoveFlexible?: (s: ScheduledStep, dropAt: Date) => void;
+  /** Checked-off step keys; with onToggleDone, each step gets a checkbox. */
+  done?: Set<string>;
+  onToggleDone?: (key: string) => void;
 }) {
   const sched = computeSchedule(meal);
   const conflictKeys = new Set(sched.conflicts.flatMap((c) => c.keys));
@@ -139,13 +162,16 @@ export default function Timeline({
                 </div>
                 {item.type === "step" ? (
                   <div
-                    className={`relative flex-1 rounded-xl border bg-white p-3 ${conflictKeys.has(item.key) ? "border-red-300" : "border-line"} ${onStepClick ? "cursor-pointer transition hover:shadow-sm active:scale-[0.99]" : ""}`}
+                    className={`relative flex-1 rounded-xl border bg-white p-3 ${done?.has(item.key) ? "opacity-60" : ""} ${conflictKeys.has(item.key) ? "border-red-300" : "border-line"} ${onStepClick ? "cursor-pointer transition hover:shadow-sm active:scale-[0.99]" : ""}`}
                     onClick={onStepClick ? () => onStepClick(item) : undefined}
                     role={onStepClick ? "button" : undefined}
                     aria-label={onStepClick ? `Edit ${item.step.title}` : undefined}
                     style={{ borderLeft: `6px solid ${color}`, backgroundColor: `${color}0d` }}
                   >
                     <div className="flex items-start gap-2">
+                      {onToggleDone && (
+                        <DoneBox checked={!!done?.has(item.key)} color={color} label={item.step.title} onToggle={() => onToggleDone(item.key)} />
+                      )}
                       {onStepClick && <span className="absolute right-2.5 top-2.5 text-xs text-muted">✏️</span>}
                       {onMoveFlexible && item.flexible && (
                         <button
@@ -160,7 +186,7 @@ export default function Timeline({
                       )}
                       <span className="text-xl leading-6">{item.dish.emoji}</span>
                       <div className="flex-1">
-                        <p className="font-semibold leading-6">{item.step.title || "Untitled step"}</p>
+                        <p className={`font-semibold leading-6 ${done?.has(item.key) ? "text-muted line-through" : ""}`}>{item.step.title || "Untitled step"}</p>
                         <p className="text-sm text-muted">
                           {item.dish.name}
                           {scheduledMinutes(item) > 0 && <> · {formatDuration(scheduledMinutes(item))}{!item.flexible && <> · until {formatTime(item.end)}</>}</>}

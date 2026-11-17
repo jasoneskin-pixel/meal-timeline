@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
 import StepEditSheet from "./StepEditSheet";
-import Timeline, { DishLegend } from "./Timeline";
+import { DishLegend } from "./Timeline";
+import TimelineView from "./TimelineView";
 import { computeSchedule, dishTarget, flexiblePinForDrop, scheduledMinutes, withStepPin, type ScheduledStep } from "@/lib/schedule";
 import { formatCountdown, formatDay, formatDuration, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
@@ -254,7 +255,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       </section>
       <section className="space-y-3 lg:hidden">
         <button className="font-bold md:text-xl" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
-        {showAll && <Timeline meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} />}
+        {showAll && <TimelineView meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} done={done} onToggleDone={toggle} />}
       </section>
       {!meal.isQuick && (
         <Link href={`/meals/${meal.id}`} className="btn-ghost w-full">📋 Meal details</Link>
@@ -271,10 +272,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       )}
       {/* Kitchen display: on iPad landscape and desktop the full timeline is always visible. */}
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:pr-1">
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold">Full timeline</h2>
-          <Timeline meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} />
-        </div>
+        <TimelineView title="Full timeline" meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} done={done} onToggleDone={toggle} />
       </aside>
     </div>
   );
