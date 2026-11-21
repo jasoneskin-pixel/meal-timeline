@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
 import StepEditSheet from "./StepEditSheet";
+import AddTaskSheet from "./AddTaskSheet";
 import TimelineView from "./TimelineView";
 import { isAllPaused, pauseDishes, pausableDishes, resumeDishes } from "@/lib/pause";
 import { computeSchedule, dishTarget, flexiblePinForDrop, scheduledMinutes, withStepPin, type ScheduledStep } from "@/lib/schedule";
@@ -67,6 +68,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   }
   const [showAll, setShowAll] = useState(false);
   const [editing, setEditing] = useState<ScheduledStep | null>(null);
+  const [addingTask, setAddingTask] = useState(false);
   async function moveFlexible(s: ScheduledStep, at: Date) {
     const pin = flexiblePinForDrop(s.step, at, dishTarget(meal, s.dish), meal.timezone);
     const updated = withStepPin(meal, s.dish.id, s.step.id, pin);
@@ -324,6 +326,7 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
         <h2 className="font-bold md:text-xl">Up next</h2>
         {upcoming.length ? upcoming.map((s) => renderStep(s, "next")) : <p className="text-muted">No more steps. 🎉</p>}
       </section>
+      <button type="button" className="btn-ghost w-full" onClick={() => setAddingTask(true)}>📌 + Add a task</button>
       <section className="space-y-3 lg:hidden">
         <button className="font-bold md:text-xl" onClick={() => setShowAll(!showAll)}>{showAll ? "▾" : "▸"} Full timeline</button>
         {showAll && <TimelineView meal={meal} onStepClick={setEditing} onMoveFlexible={moveFlexible} done={done} onToggleDone={toggle} />}
@@ -335,6 +338,13 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       <button className="btn-ghost w-full" onClick={finish}>✅ Done cooking</button>
     </div>
 
+      {addingTask && (
+        <AddTaskSheet
+          meal={meal}
+          onSaved={(m) => onMealChange?.(m)}
+          onClose={() => setAddingTask(false)}
+        />
+      )}
       {editing && (
         <StepEditSheet
           meal={meal} dishId={editing.dish.id} step={editing.step}
