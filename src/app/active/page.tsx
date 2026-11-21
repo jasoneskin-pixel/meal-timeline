@@ -4,12 +4,15 @@ import Link from "next/link";
 import { api } from "@/components/api";
 import SwipeToDelete from "@/components/SwipeToDelete";
 import { useUndoToast } from "@/components/UndoToast";
+import { isAllPaused, pauseDishes, pausableDishes, resumeDishes } from "@/lib/pause";
 import { computeSchedule } from "@/lib/schedule";
 import { lastServe } from "@/lib/active";
 import { formatCountdown, formatDateTime, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
 
-function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
+function ActiveCard({ meal, now, onTogglePause }: { meal: Meal; now: number; onTogglePause: (m: Meal) => void }) {
+  const canPause = pausableDishes(meal).length > 0;
+  const allPaused = isAllPaused(meal);
   const sched = computeSchedule(meal, now);
   const paused = meal.dishes.filter((d) => d.pausedAt && !d.isTasks);
   const done = new Set(meal.doneKeys ?? []);
@@ -61,7 +64,22 @@ function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
             <span className="text-muted">at {next.start.getTime() - now < 86_400_000 ? formatTime(next.start) : formatDateTime(next.start)}</span>
           </p>
         )}
-        <p className="pt-1 text-sm font-semibold text-accent">Open cook mode ›</p>
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-sm font-semibold text-accent">Open cook mode ›</p>
+          {canPause && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onTogglePause(meal);
+              }}
+              className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${allPaused ? "bg-accent text-white" : "border border-line bg-white text-ink"}`}
+            >
+              {allPaused ? "▶ Resume" : "⏸ Pause"}
+            </button>
+          )}
+        </div>
       </div>
     </Link>
   );
@@ -73,6 +91,18 @@ export default function ActivePage() {
   const [now, setNow] = useState(() => Date.now());
   const { toast, show } = useUndoToast();
   const load = () => api<Meal[]>("/api/active").then(setMeals).catch((e) => setError(e.message));
+
+  async function togglePause(m: Meal) {
+    const updated = isAllPaused(m) ? resumeDishes(m, "all") : pauseDishes(m, pausableDishes(m).map((d) => d.id));
+    setMeals((list) => (list ?? []).map((x) => (x.id === m.id ? updated : x)));
+    try {
+      const saved = await api<Meal>(`/api/meals/${m.id}`, { method: "PUT", json: updated });
+      setMeals((list) => (list ?? []).map((x) => (x.id === m.id ? saved : x)));
+    } catch (e) {
+      setError((e as Error).message);
+      load();
+    }
+  }
 
   async function finish(m: Meal) {
     setMeals((list) => (list ?? []).filter((x) => x.id !== m.id));
@@ -114,7 +144,7 @@ export default function ActivePage() {
       )}
       {meals?.map((m) => (
         <SwipeToDelete key={m.id} label="✅ Done" menuLabel="Done cooking" color="#2a9d8f" onDelete={() => finish(m)}>
-          <ActiveCard meal={m} now={now} />
+          <ActiveCard meal={m} now={now} onTogglePause={togglePause} />
         </SwipeToDelete>
       ))}
       {meals && meals.length > 0 && <p className="text-center text-xs text-muted">Tip: swipe left on a card when you&apos;re done cooking (on a computer, use the ⋯ button).</p>}
