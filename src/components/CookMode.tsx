@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { api } from "./api";
 import NotificationSetup from "./NotificationSetup";
 import StepEditSheet from "./StepEditSheet";
-import { DishLegend } from "./Timeline";
 import TimelineView from "./TimelineView";
+import { isAllPaused, pauseDishes, pausableDishes, resumeDishes } from "@/lib/pause";
 import { computeSchedule, dishTarget, flexiblePinForDrop, scheduledMinutes, withStepPin, type ScheduledStep } from "@/lib/schedule";
 import { formatCountdown, formatDay, formatDuration, formatTime } from "@/lib/format";
-import type { Meal } from "@/lib/types";
+import type { Meal, MealDish } from "@/lib/types";
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Date.now());
@@ -93,7 +93,32 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   }
   const now = useNow();
   const awake = useWakeLock();
-  const sched = useMemo(() => computeSchedule(meal), [meal]);
+  // Recomputed every tick so paused dishes keep sliding later (their countdowns look frozen).
+  const sched = useMemo(() => computeSchedule(meal, now), [meal, now]);
+  const [pauseMsg, setPauseMsg] = useState("");
+  async function savePause(updated: Meal, message: string) {
+    onMealChange?.(updated);
+    pending.current++;
+    try {
+      onMealChange?.(await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated }));
+      setPauseMsg(message);
+    } catch (e) {
+      onMealChange?.(meal);
+      setPauseMsg((e as Error).message);
+    } finally {
+      pending.current--;
+    }
+  }
+  const allPaused = isAllPaused(meal);
+  const pausedDishes = pausableDishes(meal).filter((d) => d.pausedAt);
+  const togglePauseAll = () =>
+    allPaused
+      ? savePause(resumeDishes(meal, "all"), "Resumed. Remaining steps moved later by the time it was paused.")
+      : savePause(pauseDishes(meal, pausableDishes(meal).map((d) => d.id)), "Paused. Reminders are on hold until you resume.");
+  const togglePauseDish = (d: MealDish) =>
+    d.pausedAt
+      ? savePause(resumeDishes(meal, [d.id]), `${d.emoji} ${d.name} resumed.`)
+      : savePause(pauseDishes(meal, [d.id]), `${d.emoji} ${d.name} paused. Its reminders are on hold.`);
   // Checkmarks live in the database so every device shows the same progress.
   const done = useMemo(() => new Set(meal.doneKeys ?? []), [meal.doneKeys]);
   const [syncError, setSyncError] = useState("");
@@ -147,7 +172,9 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
   const current = sched.steps.filter((s) => s.start.getTime() <= now && now < endOf(s) && !done.has(s.key));
   const overdue = sched.steps.filter((s) => endOf(s) <= now && !done.has(s.key));
   const upcoming = sched.steps.filter((s) => s.start.getTime() > now).slice(0, 4);
-  const serveMs = new Date(meal.serveAt).getTime() - now;
+  const serveTimes = sched.items.filter((i) => i.type === "serve").map((i) => (i.type === "serve" ? i.at.getTime() : 0));
+  const serveAt = serveTimes.length ? Math.max(...serveTimes) : new Date(meal.serveAt).getTime();
+  const serveMs = serveAt - now;
 
   const renderStep = (s: ScheduledStep, mode: "now" | "next" | "late") => {
     const pct = Math.min(100, Math.max(0, ((now - s.start.getTime()) / (s.end.getTime() - s.start.getTime() || 1)) * 100));
@@ -208,9 +235,31 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
       </div>
       <div className="rounded-3xl bg-ink p-5 text-white md:p-7">
         <p className="text-sm opacity-70 md:text-lg">{meal.name}</p>
-        <p className="text-sm opacity-70 md:text-lg">Serving at {formatTime(meal.serveAt)}</p>
-        <p className="mt-1 font-mono text-4xl font-bold tabular-nums md:text-7xl">{serveMs > 0 ? formatCountdown(serveMs) : "Time to eat! 🎉"}</p>
+        <p className="text-sm opacity-70 md:text-lg">Serving at {formatTime(new Date(serveAt))}{allPaused ? " · paused" : ""}</p>
+        <p className={`mt-1 font-mono text-4xl font-bold tabular-nums md:text-7xl ${allPaused ? "opacity-60" : ""}`}>
+          {allPaused ? "⏸ " : ""}{serveMs > 0 ? formatCountdown(serveMs) : "Time to eat! 🎉"}
+        </p>
+        {pausableDishes(meal).length > 0 && (
+          <button
+            type="button"
+            onClick={togglePauseAll}
+            className={`mt-3 rounded-xl px-4 py-2 font-semibold ${allPaused ? "bg-accent text-white" : "bg-white/15 text-white hover:bg-white/25"}`}
+          >
+            {allPaused ? "▶ Resume all" : "⏸ Pause all"}
+          </button>
+        )}
       </div>
+      {pausedDishes.length > 0 && (
+        <div className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {pausedDishes.map((d) => (
+            <p key={d.id}>
+              ⏸ <b>{d.emoji} {d.name}</b> paused for {formatCountdown(now - new Date(d.pausedAt!).getTime())}. Its remaining steps move later until you resume.
+            </p>
+          ))}
+          <p className="text-xs">Steps pinned to a set time stay where they are.</p>
+        </div>
+      )}
+      {pauseMsg && <p className="text-sm text-muted">{pauseMsg}</p>}
       <div className="space-y-2">
         <button className="btn-ghost w-full" onClick={() => setBehindOpen(!behindOpen)}>⏱️ Running behind?</button>
         {behindOpen && (
@@ -235,7 +284,29 @@ export default function CookMode({ meal, onMealChange }: { meal: Meal; onMealCha
         )}
         {shiftMsg && <p className="text-sm text-muted">{shiftMsg}</p>}
       </div>
-      <DishLegend meal={meal} />
+      <div className="flex flex-wrap gap-2">
+        {meal.dishes.map((d) => (
+          <span
+            key={d.id}
+            className="chip border py-0.5 pl-2 pr-0.5 text-sm"
+            style={{ backgroundColor: `${d.color}18`, borderColor: `${d.color}55`, color: "var(--ink)", opacity: d.pausedAt ? 0.6 : 1 }}
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+            {d.emoji} {d.name}
+            {!d.isTasks && (
+              <button
+                type="button"
+                onClick={() => togglePauseDish(d)}
+                aria-label={d.pausedAt ? `Resume ${d.name}` : `Pause ${d.name}`}
+                title={d.pausedAt ? "Resume" : "Pause"}
+                className="ml-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs hover:bg-white"
+              >
+                {d.pausedAt ? "▶" : "⏸"}
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
       <NotificationSetup compact />
       {syncError && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Checkmarks didn&apos;t sync: {syncError}</p>}
 

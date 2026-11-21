@@ -45,9 +45,22 @@ export interface MealSchedule {
 
 const MIN = 60_000;
 
-export function dishTarget(meal: Meal, dish: MealDish): Date {
+/** The dish's planned serving time, before any pauses. */
+export function baseDishTarget(meal: Meal, dish: MealDish): Date {
   const iso = meal.deadlineMode === "individual" && dish.serveAt && !dish.isTasks ? dish.serveAt : meal.serveAt;
   return new Date(iso);
+}
+
+/** How far a dish has been pushed back by pauses, including a pause still running at `now`. */
+export function pauseDelayMs(dish: MealDish, now: number = Date.now()): number {
+  const past = Math.max(0, dish.delayMin ?? 0) * MIN;
+  const running = dish.pausedAt ? Math.max(0, now - new Date(dish.pausedAt).getTime()) : 0;
+  return past + running;
+}
+
+/** When the dish is actually served, after pauses. */
+export function dishTarget(meal: Meal, dish: MealDish, now: number = Date.now()): Date {
+  return new Date(baseDishTarget(meal, dish).getTime() + pauseDelayMs(dish, now));
 }
 
 type Placed = { step: Step; start: Date; end: Date; pinned?: boolean; flexible?: { window: PinWindow; until: Date }; sortAt?: Date };
@@ -231,15 +244,18 @@ function orderConflicts(dish: MealDish, placed: Placed[]): Conflict[] {
   return out;
 }
 
-export function computeSchedule(meal: Meal): MealSchedule {
+export function computeSchedule(meal: Meal, now: number = Date.now()): MealSchedule {
   const steps: ScheduledStep[] = [];
   const markers: ScheduledMarker[] = [];
   const extra: Conflict[] = [];
   const tz = resolveTimeZone(meal.timezone);
 
   meal.dishes.forEach((dish, dishIndex) => {
-    const target = dishTarget(meal, dish);
+    const target = dishTarget(meal, dish, now);
     if (isNaN(target.getTime())) return;
+    // Pins stay on their planned day and clock time, whatever the pauses.
+    const pinBase = baseDishTarget(meal, dish);
+    const delay = pauseDelayMs(dish, now);
     const push = (list: Placed[]) => {
       for (const p of list) steps.push({ type: "step", key: `${dish.id}:${p.step.id}`, dishIndex, dish, ...p });
       extra.push(...orderConflicts(dish, list));
@@ -252,11 +268,11 @@ export function computeSchedule(meal: Meal): MealSchedule {
       // Prep is done by the chosen "prepared ahead by" time (or readyAheadMin before serving),
       // but never later than when the finishing steps have to begin.
       const latest = target.getTime() - finishMin * MIN;
-      const readyAt = dish.readyAt ? new Date(dish.readyAt).getTime() : NaN;
+      const readyAt = dish.readyAt ? new Date(dish.readyAt).getTime() + delay : NaN;
       const prepEnd = new Date(
         Number.isFinite(readyAt) ? Math.min(readyAt, latest) : Math.min(target.getTime() - dish.readyAheadMin * MIN, latest),
       );
-      push(layout(prep, prepEnd, tz, target));
+      push(layout(prep, prepEnd, tz, pinBase));
       if (prep.length) {
         markers.push({
           type: "hold",
@@ -267,9 +283,9 @@ export function computeSchedule(meal: Meal): MealSchedule {
           label: `Hold ${dish.name}: ${HOLD_LABELS[dish.holdMethod].toLowerCase()} until ${finish.length ? "finishing" : "serving"}`,
         });
       }
-      push(layout(finish, target, tz));
+      push(layout(finish, target, tz, pinBase));
     } else {
-      push(layout(dish.steps, target, tz));
+      push(layout(dish.steps, target, tz, pinBase));
     }
     if (!dish.isTasks) {
       markers.push({ type: "serve", key: `${dish.id}:serve`, dishIndex, dish, at: target, label: `Serve ${dish.name}` });

@@ -79,6 +79,10 @@ export interface MealDish {
   serveAt?: string | null;
   /** The meal's "Other tasks" list: pinned items not tied to a dish. */
   isTasks?: boolean;
+  /** When this dish was paused (ISO). While paused, its unpinned steps keep sliding later. */
+  pausedAt?: string | null;
+  /** Total minutes this dish has been pushed back by earlier pauses. */
+  delayMin?: number;
 }
 
 export interface Meal {

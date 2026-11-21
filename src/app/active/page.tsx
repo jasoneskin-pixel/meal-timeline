@@ -10,7 +10,8 @@ import { formatCountdown, formatDateTime, formatTime } from "@/lib/format";
 import type { Meal } from "@/lib/types";
 
 function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
-  const sched = computeSchedule(meal);
+  const sched = computeSchedule(meal, now);
+  const paused = meal.dishes.filter((d) => d.pausedAt && !d.isTasks);
   const done = new Set(meal.doneKeys ?? []);
   const current = sched.steps.filter((s) => !done.has(s.key) && s.start.getTime() <= now && now < (s.flexible ? s.flexible.until : s.end).getTime());
   const next = sched.steps.find((s) => !done.has(s.key) && s.start.getTime() > now);
@@ -27,7 +28,14 @@ function ActiveCard({ meal, now }: { meal: Meal; now: number }) {
       <div className="space-y-2 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-muted">{meal.isQuick ? "Dish" : "Meal"}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">
+              {meal.isQuick ? "Dish" : "Meal"}
+              {paused.length > 0 && (
+                <span className="chip ml-2 bg-amber-100 normal-case tracking-normal text-amber-900">
+                  ⏸ {paused.length === meal.dishes.filter((d) => !d.isTasks).length ? "Paused" : `${paused.map((d) => d.emoji).join("")} paused`}
+                </span>
+              )}
+            </p>
             <p className="text-lg font-bold">{meal.dishes.map((d) => d.emoji).join("")} {meal.name}</p>
           </div>
           <div className="text-right">

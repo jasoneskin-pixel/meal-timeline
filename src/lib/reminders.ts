@@ -32,6 +32,7 @@ export function buildNotifications(meal: Meal, now = new Date()): NotificationRo
 
   for (const s of sched.steps) {
     if (done.has(s.key)) continue; // already checked off
+    if (s.dish.pausedAt && !s.step.pin) continue; // held while the dish is paused
     stepKey = s.key;
     const label = `${s.dish.emoji} ${s.step.title}`;
     const detail = `${s.dish.name} · ${formatDuration(s.step.minutes)}${s.step.ovenTemp ? ` · ${s.step.ovenTemp}°F` : ""}`;
@@ -62,7 +63,7 @@ export function buildNotifications(meal: Meal, now = new Date()): NotificationRo
   }
   stepKey = undefined;
   for (const item of sched.items) {
-    if (item.type === "hold") {
+    if (item.type === "hold" && !item.dish.pausedAt) {
       add(item.at, "hold", `${item.dish.emoji} ${item.dish.name} is ready`, `Move it to: ${HOLD_LABELS[item.dish.holdMethod].toLowerCase()}.`);
     }
   }
