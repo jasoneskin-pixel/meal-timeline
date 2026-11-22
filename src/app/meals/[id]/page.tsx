@@ -9,6 +9,7 @@ import TimelineView from "@/components/TimelineView";
 import { useDone } from "@/components/useDone";
 import NotificationSetup from "@/components/NotificationSetup";
 import StepEditSheet from "@/components/StepEditSheet";
+import AddTaskSheet from "@/components/AddTaskSheet";
 import { dishTarget, flexiblePinForDrop, withStepPin, type ScheduledStep } from "@/lib/schedule";
 import { computeSchedule } from "@/lib/schedule";
 import { formatDateTime, fromLocalInputs } from "@/lib/format";
@@ -18,6 +19,7 @@ export default function MealPage() {
   const router = useRouter();
   const { meal, error, setMeal } = useMeal();
   const [editing, setEditing] = useState<ScheduledStep | null>(null);
+  const [addingTask, setAddingTask] = useState(false);
   const { done, toggle, error: doneError } = useDone(meal, setMeal);
   const [dupOpen, setDupOpen] = useState(false);
   const [dupDate, setDupDate] = useState("");
@@ -55,6 +57,7 @@ export default function MealPage() {
       <Link href={`/meals/${meal.id}/print`} className="btn-ghost w-full">🖨️ Print timeline</Link>
       {meal.remindersOn && <NotificationSetup compact />}
       <DishLegend meal={meal} />
+      <button type="button" className="btn-ghost w-full" onClick={() => setAddingTask(true)}>📌 + Add a task</button>
       <p className="text-xs text-muted">Tap a circle to check a step off. In Detailed view, tap a step to edit it.</p>
       {doneError && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">Checkmark didn&apos;t sync: {doneError}</p>}
       <TimelineView
@@ -69,6 +72,7 @@ export default function MealPage() {
           setMeal(await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated }).catch(() => meal));
         }}
       />
+      {addingTask && <AddTaskSheet meal={meal} onSaved={setMeal} onClose={() => setAddingTask(false)} />}
       {editing && (
         <StepEditSheet meal={meal} dishId={editing.dish.id} step={editing.step} onSaved={setMeal} onClose={() => setEditing(null)} />
       )}
