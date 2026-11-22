@@ -25,6 +25,9 @@ export async function POST(req: Request, { params }: Ctx) {
       id: newId(),
       serveAt: d.serveAt ? new Date(new Date(d.serveAt).getTime() + shift).toISOString() : null,
       readyAt: d.readyAt ? new Date(new Date(d.readyAt).getTime() + shift).toISOString() : null,
+      readyWindow: d.readyWindow
+        ? { ...d.readyWindow, date: new Date(Date.parse(`${d.readyWindow.date}T12:00:00Z`) + Math.round(shift / 86_400_000) * 86_400_000).toISOString().slice(0, 10) }
+        : null,
     })),
   };
   const ins = await db().from("meals").insert(mealToRow(copy)).select().single();

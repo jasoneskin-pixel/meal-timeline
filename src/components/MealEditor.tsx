@@ -11,7 +11,7 @@ import { newId } from "@/lib/ids";
 import { pickUnusedColor } from "@/lib/palette";
 import { formatDuration, fromLocalInputs, toLocalInputs } from "@/lib/format";
 import { dishTarget, flexiblePinForDrop, totalMinutes, withStepPin } from "@/lib/schedule";
-import { HOLD_LABELS, type Dish, type HoldMethod, type Meal, type MealDish } from "@/lib/types";
+import { HOLD_LABELS, type Dish, type HoldMethod, type Meal, type MealDish, type PinWindow } from "@/lib/types";
 
 type Draft = Omit<Meal, "id"> & { id?: string };
 
@@ -54,6 +54,15 @@ function DateTimeInputs({ iso, onChange }: { iso: string | null | undefined; onC
 
 function dishServeIso(dish: MealDish, individual: boolean, mealServeAt: string): string | null {
   return (individual && dish.serveAt) || mealServeAt || null;
+}
+
+const READY_BY_LABEL: Record<PinWindow, string> = { morning: "12:00 PM", afternoon: "5:00 PM", evening: "10:00 PM", anytime: "10:00 PM" };
+
+/** Starting value when switching how the prepared-by time is set: the current "hours before" setting. */
+function defaultReadyDate(dish: MealDish, individual: boolean, mealServeAt: string): Date {
+  if (dish.readyAt) return new Date(dish.readyAt);
+  const serve = dishServeIso(dish, individual, mealServeAt);
+  return serve ? new Date(new Date(serve).getTime() - dish.readyAheadMin * 60_000) : new Date();
 }
 
 /** "That's 3 days 2 hr before serving" under a prepared-by date. */
@@ -133,27 +142,58 @@ function MealDishCard({
                 </div>
                 <div className="space-y-2">
                   <label className="label">When should it be prepared by?</label>
-                  <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-line text-sm font-semibold">
+                  <div className="grid grid-cols-3 overflow-hidden rounded-xl border border-line text-xs font-semibold sm:text-sm">
                     <button
                       type="button"
-                      onClick={() => set({ readyAt: null })}
-                      className={`py-2 ${!dish.readyAt ? "bg-ink text-white" : "bg-white text-muted"}`}
+                      onClick={() => set({ readyAt: null, readyWindow: null })}
+                      className={`px-1 py-2 ${!dish.readyAt && !dish.readyWindow ? "bg-ink text-white" : "bg-white text-muted"}`}
                     >
                       Time before serving
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const serve = dishServeIso(dish, individual, mealServeAt);
-                        const base = serve ? new Date(new Date(serve).getTime() - dish.readyAheadMin * 60_000) : new Date();
-                        set({ readyAt: base.toISOString() });
-                      }}
-                      className={`py-2 ${dish.readyAt ? "bg-ink text-white" : "bg-white text-muted"}`}
+                      onClick={() => set({ readyAt: defaultReadyDate(dish, individual, mealServeAt).toISOString(), readyWindow: null })}
+                      className={`px-1 py-2 ${dish.readyAt ? "bg-ink text-white" : "bg-white text-muted"}`}
                     >
                       A date &amp; time
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = defaultReadyDate(dish, individual, mealServeAt);
+                        const h = d.getHours();
+                        set({
+                          readyAt: null,
+                          readyWindow: { date: toLocalInputs(d.toISOString()).date, window: h < 12 ? "morning" : h < 17 ? "afternoon" : "evening" },
+                        });
+                      }}
+                      className={`px-1 py-2 ${dish.readyWindow ? "bg-ink text-white" : "bg-white text-muted"}`}
+                    >
+                      A day + time of day
+                    </button>
                   </div>
-                  {dish.readyAt ? (
+                  {dish.readyWindow ? (
+                    <>
+                      <div className="flex gap-2">
+                        <input
+                          type="date" className="field flex-1" value={dish.readyWindow.date}
+                          onChange={(e) => e.target.value && set({ readyWindow: { ...dish.readyWindow!, date: e.target.value } })}
+                        />
+                        <select
+                          className="field w-40" value={dish.readyWindow.window}
+                          onChange={(e) => set({ readyWindow: { ...dish.readyWindow!, window: e.target.value as PinWindow } })}
+                        >
+                          <option value="morning">Morning</option>
+                          <option value="afternoon">Afternoon</option>
+                          <option value="evening">Evening</option>
+                          <option value="anytime">Anytime that day</option>
+                        </select>
+                      </div>
+                      <p className="text-sm text-muted">
+                        Prep shows as flexible in that window, done by {READY_BY_LABEL[dish.readyWindow.window]}.
+                      </p>
+                    </>
+                  ) : dish.readyAt ? (
                     <>
                       <DateTimeInputs key={`ready-${dish.id}`} iso={dish.readyAt} onChange={(readyAt) => readyAt && set({ readyAt })} />
                       <ReadyAtHint dish={dish} individual={individual} mealServeAt={mealServeAt} />

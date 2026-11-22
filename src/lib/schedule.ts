@@ -1,6 +1,6 @@
 import { HOLD_LABELS, UNTIL_SERVE, WINDOW_HOURS, WINDOW_LABELS, type Meal, type MealDish, type PinWindow, type Step, type StepPin } from "./types";
 import { formatDuration, formatTime } from "./format";
-import { calendarDaysBetween, resolveTimeZone, wallClock, wallTimeDaysBefore } from "./zoned";
+import { calendarDaysBetween, resolveTimeZone, wallClock, wallTimeDaysBefore, wallTimeOnDate } from "./zoned";
 
 export interface ScheduledStep {
   type: "step";
@@ -269,10 +269,42 @@ export function computeSchedule(meal: Meal, now: number = Date.now()): MealSched
       // but never later than when the finishing steps have to begin.
       const latest = target.getTime() - finishMin * MIN;
       const readyAt = dish.readyAt ? new Date(dish.readyAt).getTime() + delay : NaN;
+      // "Prepared on <day>, <time of day>": prep is flexible within that window.
+      const rw = dish.readyWindow && /^\d{4}-\d{2}-\d{2}$/.test(dish.readyWindow.date) ? dish.readyWindow : null;
+      const winStart = rw ? wallTimeOnDate(rw.date, WINDOW_HOURS[rw.window][0], 0, tz).getTime() : NaN;
+      const winEnd = rw ? wallTimeOnDate(rw.date, WINDOW_HOURS[rw.window][1], 0, tz).getTime() : NaN;
       const prepEnd = new Date(
-        Number.isFinite(readyAt) ? Math.min(readyAt, latest) : Math.min(target.getTime() - dish.readyAheadMin * MIN, latest),
+        rw
+          ? Math.min(winEnd, latest)
+          : Number.isFinite(readyAt)
+            ? Math.min(readyAt, latest)
+            : Math.min(target.getTime() - dish.readyAheadMin * MIN, latest),
       );
-      push(layout(prep, prepEnd, tz, pinBase));
+      const placedPrep = layout(prep, prepEnd, tz, pinBase);
+      if (
+        rw &&
+        placedPrep.length &&
+        prepEnd.getTime() === winEnd &&
+        placedPrep.every((p) => !p.step.pin && !p.flexible) &&
+        Math.min(...placedPrep.map((p) => p.start.getTime())) >= winStart
+      ) {
+        // The prep fits in the window: show it as flexible ("Morning · anytime before 12 PM"), in order.
+        for (const p of placedPrep) {
+          const len = p.end.getTime() - p.start.getTime();
+          p.sortAt = p.start;
+          p.start = new Date(winStart);
+          p.end = new Date(winStart + len);
+          p.flexible = { window: rw.window, until: new Date(winEnd) };
+        }
+      }
+      if (rw && placedPrep.length && !placedPrep[0].flexible && Math.min(...placedPrep.map((p) => p.start.getTime())) < winStart) {
+        extra.push({
+          kind: "order",
+          keys: placedPrep.map((p) => `${dish.id}:${p.step.id}`),
+          message: `${dish.emoji} ${dish.name} prep takes longer than the ${WINDOW_LABELS[rw.window].toLowerCase()} window, so it starts at ${formatTime(new Date(Math.min(...placedPrep.map((p) => p.start.getTime()))))}. Pick an earlier window or a specific time.`,
+        });
+      }
+      push(placedPrep);
       if (prep.length) {
         markers.push({
           type: "hold",

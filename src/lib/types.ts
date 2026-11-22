@@ -75,6 +75,8 @@ export interface MealDish {
   readyAheadMin: number;
   /** For make-ahead dishes: an exact "prepared ahead by" time (ISO). When set, it is used instead of readyAheadMin. */
   readyAt?: string | null;
+  /** For make-ahead dishes: prepared on a day within a time of day, e.g. { date: "2026-11-25", window: "morning" }. */
+  readyWindow?: { date: string; window: PinWindow } | null;
   /** Individual serve time (ISO). Used only when the meal's deadlineMode is "individual". */
   serveAt?: string | null;
   /** The meal's "Other tasks" list: pinned items not tied to a dish. */

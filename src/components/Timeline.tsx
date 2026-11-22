@@ -173,7 +173,7 @@ export default function Timeline({
                         <DoneBox checked={!!done?.has(item.key)} color={color} label={item.step.title} onToggle={() => onToggleDone(item.key)} />
                       )}
                       {onStepClick && <span className="absolute right-2.5 top-2.5 text-xs text-muted">✏️</span>}
-                      {onMoveFlexible && item.flexible && (
+                      {onMoveFlexible && item.flexible && item.step.pin && (
                         <button
                           type="button"
                           aria-label={`Drag ${item.step.title}`}
@@ -235,7 +235,7 @@ export default function Timeline({
           {drag.label}
         </div>
       )}
-      {onMoveFlexible && sched.steps.some((s) => s.flexible) && !drag && (
+      {onMoveFlexible && sched.steps.some((s) => s.flexible && s.step.pin) && !drag && (
         <p className="text-xs text-muted">Tip: drag ⠿ on a flexible step to move it.</p>
       )}
     </div>
