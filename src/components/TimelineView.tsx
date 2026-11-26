@@ -2,6 +2,7 @@
 import { useSyncExternalStore, type ComponentProps } from "react";
 import Timeline from "./Timeline";
 import SimpleTimeline from "./SimpleTimeline";
+import { computeSchedule } from "@/lib/schedule";
 
 export type TimelineMode = "detailed" | "simple";
 const KEY = "timelineView";
@@ -35,6 +36,27 @@ export function useTimelineMode(): [TimelineMode, (m: TimelineMode) => void] {
   ];
 }
 
+const HIDE_KEY = "timelineHideDone";
+function readHide(): boolean {
+  try {
+    return localStorage.getItem(HIDE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** "Hide completed" preference, remembered on this device. */
+export function useHideDone(): [boolean, (v: boolean) => void] {
+  const hide = useSyncExternalStore(subscribe, readHide, () => false);
+  return [
+    hide,
+    (v) => {
+      try { localStorage.setItem(HIDE_KEY, v ? "1" : "0"); } catch {}
+      listeners.forEach((l) => l());
+    },
+  ];
+}
+
 export function TimelineModeSwitch({ mode, onChange }: { mode: TimelineMode; onChange: (m: TimelineMode) => void }) {
   return (
     <div className="inline-flex overflow-hidden rounded-xl border border-line text-sm font-semibold">
@@ -55,17 +77,30 @@ export function TimelineModeSwitch({ mode, onChange }: { mode: TimelineMode; onC
 /** The timeline with a Detailed / Simple switch above it. */
 export default function TimelineView(props: ComponentProps<typeof Timeline> & { title?: string }) {
   const [mode, setMode] = useTimelineMode();
+  const [hideDone, setHideDone] = useHideDone();
   const { title, ...rest } = props;
+  const doneCount = rest.done ? computeSchedule(rest.meal).steps.filter((st) => rest.done!.has(st.key)).length : 0;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {title ? <h2 className="text-lg font-bold md:text-xl">{title}</h2> : <span />}
-        <TimelineModeSwitch mode={mode} onChange={setMode} />
+        <div className="flex flex-wrap items-center gap-2">
+          {rest.onToggleDone && doneCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setHideDone(!hideDone)}
+              className={`rounded-xl border px-3 py-1.5 text-sm font-semibold ${hideDone ? "border-ink bg-ink text-white" : "border-line bg-white text-muted"}`}
+            >
+              {hideDone ? `Show completed (${doneCount})` : `Hide completed (${doneCount})`}
+            </button>
+          )}
+          <TimelineModeSwitch mode={mode} onChange={setMode} />
+        </div>
       </div>
       {mode === "simple" ? (
-        <SimpleTimeline meal={rest.meal} done={rest.done} onToggleDone={rest.onToggleDone} />
+        <SimpleTimeline meal={rest.meal} done={rest.done} onToggleDone={rest.onToggleDone} hideDone={hideDone} />
       ) : (
-        <Timeline {...rest} />
+        <Timeline {...rest} hideDone={hideDone} />
       )}
     </div>
   );

@@ -7,11 +7,11 @@ const dayLabel = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", m
 
 /** A plain checklist grouped by day and time, like a notes-app timeline. */
 export default function SimpleTimeline({
-  meal, done, onToggleDone, printable,
-}: { meal: Meal; done?: Set<string>; onToggleDone?: (key: string) => void; printable?: boolean }) {
+  meal, done, onToggleDone, printable, hideDone,
+}: { meal: Meal; done?: Set<string>; onToggleDone?: (key: string) => void; printable?: boolean; hideDone?: boolean }) {
   const sched = computeSchedule(meal);
   const timeOf = (i: TimelineItem) => (i.type === "step" ? i.sortAt ?? i.start : i.at);
-  const items = sched.items.filter((i) => i.type !== "hold");
+  const items = sched.items.filter((i) => i.type !== "hold" && !(hideDone && i.type === "step" && done?.has(i.key)));
   if (!items.length) return <p className="text-muted">Add dishes with steps to see the timeline.</p>;
 
   // day -> time label -> items

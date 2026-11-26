@@ -16,7 +16,6 @@ export default function StepEditSheet({
   const [draft, setDraft] = useState<Step>(step);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [askLibrary, setAskLibrary] = useState<Meal | null>(null);
   const set = (patch: Partial<Step>) => setDraft((d) => ({ ...d, ...patch }));
 
   async function save(remove = false) {
@@ -28,25 +27,7 @@ export default function StepEditSheet({
     try {
       const saved = await api<Meal>(`/api/meals/${meal.id}`, { method: "PUT", json: updated });
       onSaved(saved);
-      if (dish.sourceDishId && !isTask) {
-        setAskLibrary(saved);
-        setBusy(false);
-      } else {
-        onClose();
-      }
-    } catch (e) {
-      setError((e as Error).message);
-      setBusy(false);
-    }
-  }
-
-  async function updateLibrary() {
-    const d = askLibrary?.dishes.find((x) => x.id === dishId);
-    if (!d?.sourceDishId) return onClose();
-    setBusy(true);
-    try {
-      await api(`/api/dishes/${d.sourceDishId}`, { method: "PUT", json: { name: d.name, emoji: d.emoji, color: d.color, steps: d.steps } });
-      onClose();
+      onClose(); // Edits here only change this meal; the Library dish stays as it was.
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -59,20 +40,7 @@ export default function StepEditSheet({
         className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-t-3xl bg-bg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {askLibrary ? (
-          <>
-            <h2 className="text-lg font-bold">Saved to this meal ✓</h2>
-            <p className="text-sm">
-              Also update <b>{dish.emoji} {dish.name}</b> in your Library so future meals get this version of its steps?
-            </p>
-            {error && <p className="text-sm text-red-700">{error}</p>}
-            <div className="grid grid-cols-2 gap-3">
-              <button className="btn-ghost" disabled={busy} onClick={onClose}>This meal only</button>
-              <button className="btn-primary" disabled={busy} onClick={updateLibrary}>{busy ? "Updating..." : "Update Library too"}</button>
-            </div>
-          </>
-        ) : (
-          <>
+        <>
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-lg font-bold">✏️ Edit {isTask ? "task" : "step"} <span className="text-muted">· {dish.emoji} {dish.name}</span></h2>
               <button className="text-muted" onClick={onClose}>Cancel</button>
@@ -135,9 +103,8 @@ export default function StepEditSheet({
               <button className="btn-danger" disabled={busy} onClick={() => save(true)}>Remove</button>
               <button className="btn-primary flex-1" disabled={busy} onClick={() => save()}>{busy ? "Saving..." : "Save"}</button>
             </div>
-            <p className="text-center text-xs text-muted">Changes apply to this meal and update its reminders.</p>
-          </>
-        )}
+            <p className="text-center text-xs text-muted">Changes apply to this meal only and update its reminders.</p>
+        </>
       </div>
     </div>
   );

@@ -67,7 +67,7 @@ export function DoneBox({ checked, color, onToggle, label }: { checked: boolean;
 }
 
 export default function Timeline({
-  meal, onStepClick, onMoveFlexible, done, onToggleDone,
+  meal, onStepClick, onMoveFlexible, done, onToggleDone, hideDone,
 }: {
   meal: Meal;
   onStepClick?: (s: ScheduledStep) => void;
@@ -76,11 +76,21 @@ export default function Timeline({
   /** Checked-off step keys; with onToggleDone, each step gets a checkbox. */
   done?: Set<string>;
   onToggleDone?: (key: string) => void;
+  /** Leave checked-off steps out of the list. */
+  hideDone?: boolean;
 }) {
   const sched = computeSchedule(meal);
   const conflictKeys = new Set(sched.conflicts.flatMap((c) => c.keys));
   const [now] = useState(() => Date.now());
   const [drag, setDrag] = useState<Drag | null>(null);
+  const isHidden = (i: TimelineItem) => !!hideDone && i.type === "step" && !!done?.has(i.key);
+  // The closest earlier item still on screen, for day headings when some are hidden.
+  const prevShown: (TimelineItem | null)[] = [];
+  let lastShown: TimelineItem | null = null;
+  for (const i of sched.items) {
+    prevShown.push(lastShown);
+    if (!isHidden(i)) lastShown = i;
+  }
   const didDrag = useRef(false);
 
   const hover = (x: number, y: number): { index: number; side: "after" | "before" } | null => {
@@ -149,8 +159,10 @@ export default function Timeline({
       )}
       <ol className="space-y-2">
         {sched.items.map((item, idx) => {
+          if (isHidden(item)) return null;
           const t = itemTime(item);
-          const showDay = idx === 0 || dayKey(t) !== dayKey(itemTime(sched.items[idx - 1]));
+          const prev = prevShown[idx];
+          const showDay = !prev || dayKey(t) !== dayKey(itemTime(prev));
           const color = item.dish.color;
           return (
             <li key={item.key} data-tl-index={idx} className={drag?.key === item.key ? "opacity-40" : ""}>
